@@ -1,0 +1,1001 @@
+const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+const ws = new WebSocket(`${wsProtocol}//${location.host}`);
+const canvas = document.getElementById('timerCanvas');
+const ctx = canvas.getContext('2d');
+
+let myLat = 26.0753; 
+let myLon = 119.3062;
+let currentDevicesState = {};
+
+// 永久锁定机制：用“期望状态”记录操作，直到服务器数据真实同步才解锁
+let pendingDeviceStates = {};
+
+// 折线图实例
+let weatherChart = null; 
+let todayWeatherSnapshot = null;
+let weatherFetchPromise = null;
+let avatarRecognition = null;
+let avatarModelSourceIndex = 0;
+let speechInProgress = false;
+let globalVoiceHideTimer = null;
+let deviceDemoActive = false;
+let deviceDemoFlushTimer = null;
+let deviceDemoTimers = [];
+const deviceDemoQueue = [];
+const previousDeviceState = {};
+
+window.onload = () => {
+  const savedKey = sessionStorage.getItem('agentApiKey') || localStorage.getItem('agentApiKey');
+  const savedProvider = localStorage.getItem('agentProvider') || 'deepseek';
+  const savedLevel = localStorage.getItem('agentLevel') || 'low';
+  
+  if (savedKey) document.getElementById('apiKeyInput').value = savedKey;
+  document.querySelector(`input[name="provider"][value="${savedProvider}"]`).checked = true;
+  document.querySelector(`input[name="level"][value="${savedLevel}"]`).checked = true;
+  updatePlaceholder();
+
+  initLocationAndWeather();
+};
+
+function initLocationAndWeather() {
+  const locDisplay = document.getElementById('location-display');
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        myLat = pos.coords.latitude;
+        myLon = pos.coords.longitude;
+        await reverseGeocode(myLat, myLon); 
+        fetchHourlyWeather(); 
+        fetchWeather();       
+      },
+      async (err) => {
+        if (locDisplay) locDisplay.innerText = `📍 未授权定位，默认: 中国-福建省-福州市 [经度: ${myLon.toFixed(2)}, 纬度: ${myLat.toFixed(2)}]`;
+        fetchHourlyWeather();
+        fetchWeather();
+      },
+      { timeout: 5000 }
+    );
+  } else {
+    fetchHourlyWeather();
+    fetchWeather();
+  }
+}
+
+async function reverseGeocode(lat, lon) {
+  const locDisplay = document.getElementById('location-display');
+  if (!locDisplay) return;
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14&addressdetails=1&accept-language=zh-CN`);
+    const data = await res.json();
+    if (data && data.address) {
+      const ad = data.address;
+      const addrStr = [ad.country || '中国', ad.state || ad.province || '', ad.city || ad.town || ad.county || '', ad.suburb || ad.district || ''].filter(Boolean).join('-');
+      locDisplay.innerText = `📍 ${addrStr} [经度: ${lon.toFixed(2)}, 纬度: ${lat.toFixed(2)}]`;
+    } else {
+      locDisplay.innerText = `📍 定位成功 [经度: ${lon.toFixed(2)}, 纬度: ${lat.toFixed(2)}]`;
+    }
+  } catch(e) {
+    locDisplay.innerText = `📍 定位成功 (解析失败) [经度: ${lon.toFixed(2)}, 纬度: ${lat.toFixed(2)}]`;
+  }
+}
+
+function updatePlaceholder() {
+  const provider = document.querySelector('input[name="provider"]:checked').value;
+  const input = document.getElementById('apiKeyInput');
+  if (provider === 'deepseek') input.placeholder = "请输入 DeepSeek 密钥 (通常以 sk- 开头)...";
+  else if (provider === 'qwen') input.placeholder = "请输入通义千问 密钥 (通常以 sk- 开头)...";
+  else if (provider === 'doubao') input.placeholder = "请输入火山引擎/豆包 密钥 (纯字符，通常无 sk- 前缀)...";
+}
+
+function saveConfig(mode) {
+  const key = document.getElementById('apiKeyInput').value;
+  const provider = document.querySelector('input[name="provider"]:checked').value;
+  const level = document.querySelector('input[name="level"]:checked').value;
+  
+  localStorage.setItem('agentProvider', provider);
+  localStorage.setItem('agentLevel', level);
+
+  if (mode === 'permanent') {
+    if (key) localStorage.setItem('agentApiKey', key);
+    sessionStorage.removeItem('agentApiKey'); 
+  } else if (mode === 'session') {
+    if (key) sessionStorage.setItem('agentApiKey', key);
+    localStorage.removeItem('agentApiKey'); 
+  }
+  
+  const status = document.getElementById('saveStatus');
+  status.innerText = mode === 'permanent' ? '✓ 配置已永久保存' : '✓ 密钥仅本次有效';
+  status.style.display = 'inline-block';
+  setTimeout(() => status.style.display = 'none', 2000);
+}
+
+function switchPage(pageId, element) {
+  document.querySelectorAll('.page-view').forEach(page => page.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+  document.getElementById(`page-${pageId}`).classList.add('active');
+  element.classList.add('active');
+  if (pageId === 'weather') fetchWeather();
+}
+
+function toggleTheme() { document.body.classList.toggle('dark-mode'); }
+
+function getWeatherInfo(code) {
+  const value = Number(code);
+  if (value === 0) return { text: '晴朗', icon: '☀️' };
+  if ([1, 2].includes(value)) return { text: '多云', icon: '⛅' };
+  if (value === 3) return { text: '阴天', icon: '☁️' };
+  if ([45, 48].includes(value)) return { text: '有雾', icon: '🌫️' };
+  if ([51, 53, 55, 56, 57].includes(value)) return { text: '毛毛雨', icon: '🌦️' };
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(value)) return { text: '下雨', icon: '🌧️' };
+  if ([71, 73, 75, 77, 85, 86].includes(value)) return { text: '下雪', icon: '❄️' };
+  if ([95, 96, 99].includes(value)) return { text: '雷雨', icon: '⛈️' };
+  return { text: '多云', icon: '⛅' };
+}
+
+function isWeatherQuestion(text) {
+  const compact = String(text || '').replace(/\s+/g, '');
+  return /(今天|今日|现在|当前|外面).*(天气|气温|温度|下雨|晴天|多云)/.test(compact)
+    || /天气情况|天气怎么样|天气如何/.test(compact);
+}
+
+function buildWeatherNarrative(snapshot) {
+  const dailyInfo = getWeatherInfo(snapshot.dailyCode);
+  const currentInfo = getWeatherInfo(snapshot.currentCode);
+  const maxTemp = Math.round(snapshot.maxTemp);
+  const minTemp = Math.round(snapshot.minTemp);
+  const currentTemp = Math.round(snapshot.currentTemp);
+
+  let advice = '当前气温较为舒适，适合适当外出活动';
+  if (currentTemp > 30) advice = '此时气温较高，出门注意防晒';
+  else if (currentTemp < 20) advice = '此时气温较低，出门注意保暖';
+
+  return `今天的天气情况是${dailyInfo.text}。全天最高气温${maxTemp}摄氏度，最低气温${minTemp}摄氏度。此刻天气${currentInfo.text}，气温${currentTemp}摄氏度。${advice}。`;
+}
+
+async function getTodayWeatherSnapshot() {
+  const isFresh = todayWeatherSnapshot
+    && Date.now() - todayWeatherSnapshot.fetchedAt < 5 * 60 * 1000;
+  if (isFresh) return todayWeatherSnapshot;
+  return fetchWeather();
+}
+
+function parseLocalTaskCommand(text) {
+  const compact = String(text || '').replace(/\s+/g, '');
+  const taskMinutes = {
+    '倒垃圾': 10,
+    '晒衣服': 30,
+    '晾衣服': 30,
+    '收衣服': 10,
+    '浇花': 10,
+    '拖地': 20,
+    '扫地': 20,
+    '洗碗': 15,
+    '擦桌子': 10,
+    '整理房间': 30
+  };
+  const taskName = Object.keys(taskMinutes).find(name => compact.includes(name));
+  if (!taskName) return null;
+
+  let execute = 'now';
+  let scheduledTime = '';
+  const afterMatch = compact.match(/(\d{1,3})分钟后/);
+  if (afterMatch) {
+    const target = new Date(Date.now() + Number(afterMatch[1]) * 60 * 1000);
+    scheduledTime = `${String(target.getHours()).padStart(2, '0')}:${String(target.getMinutes()).padStart(2, '0')}`;
+    execute = 'scheduled';
+  } else {
+    const timeMatch = compact.match(/(今天|明天)?(上午|下午|晚上)?(\d{1,2})(?:点|:|：)(\d{1,2})?/);
+    if (timeMatch) {
+      let hour = Number(timeMatch[3]);
+      const minute = Number(timeMatch[4] || 0);
+      if ((timeMatch[2] === '下午' || timeMatch[2] === '晚上') && hour < 12) hour += 12;
+      scheduledTime = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+      execute = 'scheduled';
+    } else if (/稍后|待会|等会|晚点|一会儿/.test(compact)) {
+      scheduledTime = '稍后';
+      execute = 'scheduled';
+    }
+  }
+
+  return {
+    name: taskName === '晾衣服' ? '晒衣服' : taskName,
+    minutes: taskMinutes[taskName],
+    execute,
+    scheduledTime
+  };
+}
+
+async function sendVoiceCommand() {
+  const text = document.getElementById('userInput').value;
+  if (!text) {
+    showGlobalVoiceStatus('没有听清', '请点击“呼唤管家”后重新说出指令。', 'idle');
+    hideGlobalVoiceStatus();
+    return;
+  }
+
+  if (isWeatherQuestion(text)) {
+    document.getElementById('userInput').value = '';
+    showGlobalVoiceStatus('管家查询中', '正在获取今天的天气情况...', 'thinking');
+    const snapshot = await getTodayWeatherSnapshot();
+    if (!snapshot) {
+      agentSpeak("抱歉，我暂时无法获取今天的天气情况，请检查网络或稍后再试。");
+      return;
+    }
+    agentSpeak(buildWeatherNarrative(snapshot));
+    return;
+  }
+
+  const localTask = parseLocalTaskCommand(text);
+  if (localTask) {
+    document.getElementById('userInput').value = '';
+    showGlobalVoiceStatus('任务安排中', `正在安排“${localTask.name}”...`, 'thinking');
+
+    try {
+      const res = await fetch('/api/task', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(localTask)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '任务创建失败');
+
+      const task = data.task || localTask;
+      const reply = task.executeMode === 'scheduled'
+        ? `好的，已安排在${task.scheduledTime || localTask.scheduledTime}执行${task.name}。`
+        : `好的，现在开始${task.name}。`;
+      agentSpeak(reply);
+    } catch (error) {
+      showGlobalVoiceStatus('任务创建失败', error.message || '请稍后再试。', 'idle');
+      hideGlobalVoiceStatus();
+    }
+    return;
+  }
+
+  const apiKey = document.getElementById('apiKeyInput').value;
+  const provider = document.querySelector('input[name="provider"]:checked').value;
+  const level = document.querySelector('input[name="level"]:checked').value;
+
+  if (!apiKey) {
+    agentSpeak("请先前往设置页面，填入您的 AI 密钥。");
+    return;
+  }
+
+  document.getElementById('userInput').value = '';
+  console.log(`[发送指令]: "${text}"`);
+  showGlobalVoiceStatus('管家思考中', `正在理解：“${text}”`, 'thinking');
+  
+  const statusEl = document.querySelector('.avatar-status');
+  if (statusEl) statusEl.innerText = "正在为您思考，请稍候...";
+
+  try {
+    const res = await fetch('/api/interact', { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' }, 
+      body: JSON.stringify({ text, llmConfig: { apiKey, provider, level } }) 
+    });
+    const data = await res.json();
+    if (data.reply) agentSpeak(data.reply);
+    else {
+      showGlobalVoiceStatus('没有回应', '管家暂时没有生成有效回复。', 'idle');
+      hideGlobalVoiceStatus();
+    }
+  } catch (error) {
+    if (statusEl) statusEl.innerText = "抱歉，网络连接或大模型调用出现了异常。";
+    showGlobalVoiceStatus('连接异常', '网络连接或大模型调用出现了异常。', 'idle');
+    hideGlobalVoiceStatus();
+  }
+}
+
+// 拨动开关，锁定状态并精准触发语音播报
+async function toggleDevice(deviceKey, deviceName) {
+  const checkbox = document.getElementById(`switch-${deviceKey}`);
+  const newState = checkbox.checked ? '开启' : '关闭';
+  
+  pendingDeviceStates[deviceKey] = newState;
+  
+  try {
+    await fetch('/api/toggle_device', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device: deviceKey, state: newState })
+    });
+    
+    agentSpeak(`${deviceName}已经${newState}。`);
+    
+  } catch (error) {
+    console.error("手动切换设备失败", error);
+    checkbox.checked = !checkbox.checked; // 仅当网络请求彻底失败时弹回
+    delete pendingDeviceStates[deviceKey]; // 解除锁定
+  }
+}
+
+function setAvatarAnimation(preferredNames = []) {
+  const avatar3D = document.getElementById('avatar-3d');
+  const available = avatar3D?.availableAnimations || [];
+  if (!available.length) return;
+
+  const normalized = available.map(name => String(name).toLowerCase());
+  let matchIndex = -1;
+
+  for (const preferred of preferredNames) {
+    matchIndex = normalized.findIndex(name => name === preferred);
+    if (matchIndex >= 0) break;
+  }
+
+  if (matchIndex < 0) {
+    for (const preferred of preferredNames) {
+      matchIndex = normalized.findIndex(name => name.includes(preferred));
+      if (matchIndex >= 0) break;
+    }
+  }
+
+  if (matchIndex >= 0) avatar3D.setAttribute('animation-name', available[matchIndex]);
+}
+
+function initDigitalHuman() {
+  const avatar3D = document.getElementById('avatar-3d');
+  const stage = document.getElementById('avatarStage');
+  if (!avatar3D) return;
+
+  const modelSources = [
+    avatar3D.getAttribute('src'),
+    avatar3D.dataset.fallbackSrc,
+    avatar3D.dataset.finalFallbackSrc
+  ].filter(Boolean);
+
+  avatar3D.addEventListener('load', () => {
+    if (stage) stage.classList.add('avatar-model-ready');
+    setAvatarAnimation(['idle', 'stand', 'standing']);
+  });
+
+  avatar3D.addEventListener('error', () => {
+    avatarModelSourceIndex += 1;
+    if (avatarModelSourceIndex >= modelSources.length) {
+      if (stage) stage.classList.add('avatar-model-failed');
+      return;
+    }
+
+    if (stage) stage.classList.remove('avatar-model-ready');
+    avatar3D.setAttribute('src', modelSources[avatarModelSourceIndex]);
+  });
+}
+
+function showGlobalVoiceStatus(title, text, state = 'idle') {
+  const panel = document.getElementById('globalVoicePanel');
+  const titleEl = document.getElementById('globalVoiceTitle');
+  const textEl = document.getElementById('globalVoiceText');
+  if (!panel) return;
+
+  clearTimeout(globalVoiceHideTimer);
+  globalVoiceHideTimer = null;
+  if (titleEl) titleEl.innerText = title;
+  if (textEl) textEl.innerText = text || '';
+  panel.dataset.state = state;
+  panel.classList.add('is-visible');
+  panel.setAttribute('aria-hidden', 'false');
+}
+
+function hideGlobalVoiceStatus(force = false) {
+  const panel = document.getElementById('globalVoicePanel');
+  if (!panel) return;
+
+  clearTimeout(globalVoiceHideTimer);
+  const closePanel = () => {
+    panel.classList.remove('is-visible');
+    panel.setAttribute('aria-hidden', 'true');
+  };
+
+  if (force) closePanel();
+  else globalVoiceHideTimer = setTimeout(closePanel, 1800);
+}
+
+function summonButler() {
+  if (avatarRecognition) {
+    avatarRecognition.stop();
+    showGlobalVoiceStatus('呼唤管家', '正在结束本次语音识别...', 'thinking');
+    return;
+  }
+
+  showGlobalVoiceStatus('呼唤管家', '请说出您的指令，例如“打开客厅灯”。', 'listening');
+  startAvatarListening();
+}
+
+function getDeviceDemoConfig(deviceKey) {
+  const labels = {
+    door_main: '大门',
+    door_bedroom: '卧室门',
+    door_toilet: '厕所门',
+    door_balcony: '阳台门',
+    light_living: '客厅灯',
+    light_bedroom: '卧室灯',
+    light_kitchen: '厨房灯',
+    light_toilet: '厕所灯',
+    light_balcony: '阳台灯',
+    window_living: '客厅窗',
+    window_bedroom: '卧室窗',
+    window_kitchen: '厨房窗',
+    ac: '空调',
+    water_heater: '热水器',
+    kettle: '煮水设备',
+    washer: '洗衣机',
+    tv: '电视',
+    fan: '风扇'
+  };
+
+  if (deviceKey.startsWith('light_')) return { type: 'light', action: 'pull', label: labels[deviceKey] || '照明设备' };
+  if (deviceKey.startsWith('window_')) return { type: 'window', action: 'push', label: labels[deviceKey] || '窗户' };
+  if (deviceKey.startsWith('door_')) return { type: 'door', action: 'push', label: labels[deviceKey] || '门' };
+  if (deviceKey === 'fan') return { type: 'fan', action: 'remote', label: '风扇' };
+  if (deviceKey === 'ac') return { type: 'ac', action: 'remote', label: '空调' };
+  if (deviceKey === 'kettle') return { type: 'kettle', action: 'remote', label: '煮水设备' };
+  if (deviceKey === 'tv') return { type: 'tv', action: 'remote', label: '电视' };
+  if (deviceKey === 'washer') return { type: 'washer', action: 'remote', label: '洗衣机' };
+  return { type: 'generic', action: 'remote', label: labels[deviceKey] || '智能设备' };
+}
+
+function getDeviceDemoBody(type) {
+  if (type === 'light') {
+    return `
+      <div class="demo-lamp" data-device-visual>
+        <div class="demo-lamp-cord"></div>
+        <div class="demo-bulb"></div>
+      </div>`;
+  }
+
+  if (type === 'window') {
+    return `
+      <div class="demo-window" data-device-visual>
+        <div class="demo-window-sash"></div>
+      </div>`;
+  }
+
+  if (type === 'fan') {
+    return `
+      <div class="demo-fan" data-device-visual>
+        <div class="demo-fan-cage">
+          <div class="demo-fan-blades">
+            <span></span><span></span><span></span><span></span>
+          </div>
+        </div>
+        <div class="demo-fan-stand"></div>
+      </div>`;
+  }
+
+  if (type === 'ac') {
+    return `
+      <div class="demo-ac" data-device-visual>
+        <div class="demo-ac-body">
+          <span class="demo-ac-display"></span>
+          <span class="demo-ac-vent"></span>
+        </div>
+      </div>`;
+  }
+
+  if (type === 'tv') {
+    return `
+      <div class="demo-tv" data-device-visual>
+        <div class="demo-tv-screen"></div>
+        <div class="demo-tv-stand"></div>
+      </div>`;
+  }
+
+  if (type === 'washer') {
+    return `
+      <div class="demo-washer" data-device-visual>
+        <span class="demo-washer-panel"></span>
+        <div class="demo-washer-door">
+          <div class="demo-washer-drum"></div>
+        </div>
+      </div>`;
+  }
+
+  if (type === 'kettle') {
+    return `
+      <div class="demo-kettle" data-device-visual>
+        <span class="demo-kettle-cord"></span>
+        <span class="demo-kettle-plug"></span>
+        <span class="demo-kettle-lid"></span>
+        <span class="demo-kettle-body"></span>
+        <span class="demo-kettle-handle"></span>
+        <span class="demo-kettle-base"></span>
+        <span class="demo-kettle-switch"><i></i></span>
+        <span class="demo-kettle-light"></span>
+        <span class="demo-kettle-coil"></span>
+        <span class="demo-kettle-steam steam-one"></span>
+        <span class="demo-kettle-steam steam-two"></span>
+        <span class="demo-kettle-steam steam-three"></span>
+      </div>`;
+  }
+
+  if (type === 'door') {
+    return `
+      <div class="demo-door" data-device-visual>
+        <div class="demo-door-frame"></div>
+        <div class="demo-door-panel"></div>
+      </div>`;
+  }
+
+  return `<div class="demo-generic" data-device-visual></div>`;
+}
+
+function setDeviceDemoVisual(scene, type, isOn, instant = false) {
+  const visual = scene.querySelector('[data-device-visual]');
+  if (!visual) return;
+
+  if (type === 'light') {
+    visual.querySelector('.demo-bulb')?.classList.toggle('is-on', isOn);
+  } else if (type === 'window' || type === 'ac' || type === 'tv' || type === 'washer' || type === 'kettle' || type === 'door') {
+    visual.classList.toggle('is-on', isOn);
+    visual.classList.toggle('is-open', isOn);
+  } else if (type === 'fan') {
+    const blades = visual.querySelector('.demo-fan-blades');
+    if (!blades) return;
+    blades.classList.remove('is-spinning', 'is-stopping');
+    if (isOn) blades.classList.add('is-spinning');
+    else if (!instant) blades.classList.add('is-stopping');
+  } else {
+    visual.classList.toggle('is-on', isOn);
+  }
+}
+
+function setDeviceDemoButton(scene, isOn) {
+  const button = scene.querySelector('.demo-control-button');
+  const label = scene.querySelector('.demo-control-label');
+  if (!button) return;
+  button.classList.toggle('is-on', isOn);
+  button.classList.toggle('is-off', !isOn);
+  if (label) label.textContent = isOn ? '开启' : '关闭';
+}
+
+function queueDeviceDemo(deviceKey, nextState, previousState) {
+  if (nextState === previousState) return;
+  deviceDemoQueue.push({ deviceKey, nextState, previousState });
+  clearTimeout(deviceDemoFlushTimer);
+  deviceDemoFlushTimer = setTimeout(flushDeviceDemoQueue, 420);
+}
+
+function flushDeviceDemoQueue() {
+  if (speechInProgress || deviceDemoActive || !deviceDemoQueue.length) return;
+  playDeviceDemo(deviceDemoQueue.shift());
+}
+
+function playDeviceDemo(event) {
+  const layer = document.getElementById('deviceDemoLayer');
+  const stage = document.getElementById('avatarStage');
+  if (!layer || !stage) return;
+
+  const config = getDeviceDemoConfig(event.deviceKey);
+  const nextOn = event.nextState === '开启';
+  const initialOn = event.previousState === '开启';
+  const scene = document.createElement('div');
+  scene.className = `demo-scene demo-device-${config.type}`;
+  scene.innerHTML = `
+    <div class="demo-prop">
+      <div class="demo-caption">${config.label}</div>
+      <div class="demo-control-button ${initialOn ? 'is-on' : 'is-off'}">
+        <span class="demo-control-dot"></span>
+        <span class="demo-control-label">${initialOn ? '开启' : '关闭'}</span>
+      </div>
+      ${getDeviceDemoBody(config.type)}
+    </div>
+    <div class="demo-timer"></div>`;
+
+  deviceDemoActive = true;
+  layer.replaceChildren(scene);
+  setDeviceDemoVisual(scene, config.type, initialOn, true);
+  stage.classList.add('demo-is-active', `demo-action-${config.action}`);
+  requestAnimationFrame(() => scene.classList.add('is-visible'));
+
+  const controlButton = scene.querySelector('.demo-control-button');
+  const kettleSwitch = scene.querySelector('.demo-kettle-switch');
+  deviceDemoTimers = [
+    setTimeout(() => {
+      controlButton?.classList.add('is-pressed');
+      kettleSwitch?.classList.add('is-pressed');
+    }, 380),
+    setTimeout(() => {
+      controlButton?.classList.remove('is-pressed');
+      kettleSwitch?.classList.remove('is-pressed');
+      setDeviceDemoVisual(scene, config.type, nextOn);
+      setDeviceDemoButton(scene, nextOn);
+      scene.classList.toggle('is-pulling', config.type === 'light');
+    }, 760),
+    setTimeout(() => closeDeviceDemo(scene, stage, layer, config.action), 3000)
+  ];
+}
+
+function closeDeviceDemo(scene, stage, layer, action) {
+  deviceDemoTimers.forEach(clearTimeout);
+  deviceDemoTimers = [];
+  scene.classList.remove('is-visible');
+  scene.classList.add('is-leaving');
+  stage.classList.remove('demo-is-active', `demo-action-${action}`);
+
+  setTimeout(() => {
+    if (layer.firstChild === scene) layer.replaceChildren();
+    deviceDemoActive = false;
+    flushDeviceDemoQueue();
+  }, 360);
+}
+
+function greetDigitalHuman() {
+  agentSpeak("您好，我是您的 3D AI 管家。您可以让我控制灯光、门窗、家电，或者为您安排定时任务。");
+}
+
+function startAvatarListening() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const stage = document.getElementById('avatarStage');
+  const statusEl = document.querySelector('.avatar-status');
+  const titleEl = document.getElementById('avatarCaptionTitle');
+
+  if (!SpeechRecognition) {
+    agentSpeak("当前浏览器不支持语音识别，请使用下方的文字输入框发送指令。");
+    return;
+  }
+
+  if (avatarRecognition) {
+    avatarRecognition.stop();
+    return;
+  }
+
+  avatarRecognition = new SpeechRecognition();
+  avatarRecognition.lang = 'zh-CN';
+  avatarRecognition.continuous = false;
+  avatarRecognition.interimResults = true;
+  avatarRecognition.maxAlternatives = 1;
+
+  let heardText = '';
+
+  avatarRecognition.onstart = () => {
+    if (stage) stage.classList.add('listening');
+    if (titleEl) titleEl.innerText = '正在聆听';
+    if (statusEl) statusEl.innerText = '请说出您的指令...';
+    showGlobalVoiceStatus('正在聆听', '请说出您的指令，例如“打开卧室灯”。', 'listening');
+  };
+
+  avatarRecognition.onresult = (event) => {
+    heardText = Array.from(event.results).map(result => result[0].transcript).join('');
+    const input = document.getElementById('userInput');
+    if (input) input.value = heardText;
+    if (statusEl) statusEl.innerText = heardText || '正在识别...';
+    showGlobalVoiceStatus('识别中', heardText || '正在识别语音...', 'thinking');
+  };
+
+  avatarRecognition.onerror = () => {
+    if (statusEl) statusEl.innerText = '没有听清，请再试一次。';
+    showGlobalVoiceStatus('没有听清', '请靠近麦克风再试一次。', 'idle');
+  };
+
+  avatarRecognition.onend = () => {
+    if (stage) stage.classList.remove('listening');
+    if (titleEl) titleEl.innerText = '管家在线';
+    avatarRecognition = null;
+
+    if (heardText.trim()) sendVoiceCommand();
+    else {
+      if (statusEl) statusEl.innerText = '先生，随时听候您的差遣。';
+      hideGlobalVoiceStatus();
+    }
+  };
+
+  try {
+    avatarRecognition.start();
+  } catch (error) {
+    avatarRecognition = null;
+    if (stage) stage.classList.remove('listening');
+    if (statusEl) statusEl.innerText = '语音识别启动失败，请稍后再试。';
+    showGlobalVoiceStatus('启动失败', '语音识别启动失败，请检查麦克风权限。', 'idle');
+    hideGlobalVoiceStatus();
+  }
+}
+
+async function triggerFaceDetect() {
+  summonButler();
+}
+
+// 3D 动作与语音同步联动
+function agentSpeak(text) {
+  const statusEl = document.querySelector('.avatar-status');
+  const hologramBase = document.getElementById('hologramBase');
+  const stage = document.getElementById('avatarStage');
+  const titleEl = document.getElementById('avatarCaptionTitle');
+  
+  window.speechSynthesis.cancel();
+  speechInProgress = true;
+  showGlobalVoiceStatus('管家回应中', text, 'speaking');
+  if (statusEl) statusEl.innerText = text;
+  if (titleEl) titleEl.innerText = '管家回应中';
+  if (stage) stage.classList.add('speaking');
+  if (hologramBase) hologramBase.classList.add('speaking'); 
+  setAvatarAnimation(['wave', 'talk', 'talking', 'idle']);
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'zh-CN'; 
+  utterance.rate = 1.0;     
+  utterance.pitch = 1.0;    
+  
+  utterance.onend = () => {
+    speechInProgress = false;
+    if (stage) stage.classList.remove('speaking');
+    if (hologramBase) hologramBase.classList.remove('speaking');
+    if (titleEl) titleEl.innerText = '管家在线';
+    setAvatarAnimation(['idle', 'stand', 'standing']);
+    setTimeout(flushDeviceDemoQueue, 240);
+    hideGlobalVoiceStatus();
+    setTimeout(() => {
+      if (!window.speechSynthesis.speaking && statusEl) {
+        statusEl.innerText = "先生，随时听候您的差遣。";
+      }
+    }, 3000);
+  };
+  
+  utterance.onerror = () => {
+    speechInProgress = false;
+    if (stage) stage.classList.remove('speaking');
+    if (hologramBase) hologramBase.classList.remove('speaking');
+    if (titleEl) titleEl.innerText = '管家在线';
+    setAvatarAnimation(['idle', 'stand', 'standing']);
+    setTimeout(flushDeviceDemoQueue, 240);
+    hideGlobalVoiceStatus();
+  };
+  
+  window.speechSynthesis.speak(utterance);
+}
+
+initDigitalHuman();
+
+// 渲染总览页面上方的小时天气，并同步渲染折线图
+async function fetchHourlyWeather() {
+  const container = document.getElementById('hourlyWeatherContainer');
+  try {
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${myLat}&longitude=${myLon}&hourly=temperature_2m,weathercode&timezone=Asia%2FShanghai&forecast_days=1`);
+    const data = await res.json();
+    const now = new Date();
+    let currentH = now.getHours();
+    if (now.getMinutes() > 30) currentH = (currentH + 1) % 24;
+
+    let hoursData = [];
+    let chartLabels = [];
+    let chartTemps = [];
+
+    for (let i = 0; i < 24; i++) {
+      let temp = data.hourly.temperature_2m[i];
+      let code = data.hourly.weathercode[i];
+      const weatherInfo = getWeatherInfo(code);
+      let statusStr = weatherInfo.text;
+      let icon = weatherInfo.icon;
+      hoursData.push({ hour: i, label: `${i}:00`, icon: icon, status: statusStr, high: Math.round(temp + 1), low: Math.round(temp - 2), isPast: false });
+      
+      chartLabels.push(`${i}:00`);
+      chartTemps.push(temp);
+    }
+
+    let futureAndCurrent = [], past = [];
+    for (let item of hoursData) {
+      if (item.hour >= currentH) futureAndCurrent.push(item);
+      else { item.isPast = true; past.push(item); }
+    }
+    const sortedData = futureAndCurrent.concat(past);
+
+    let html = '';
+    sortedData.forEach(item => {
+      let pastClass = item.isPast ? ' past' : '';
+      html += `<div class="hourly-item${pastClass}"><div style="font-size: 14px; font-weight: bold; color: var(--text-main);">${item.label}</div><div style="font-size: 22px; margin: 6px 0;">${item.icon}</div><div class="text-status">${item.status}</div><div class="text-temp"><span class="temp-high">${item.high}°</span> / <span class="temp-low">${item.low}°</span></div></div>`;
+    });
+    if(container) container.innerHTML = html;
+
+    // 渲染图表
+    const ctxChart = document.getElementById('weatherTrendChart');
+    if (ctxChart) {
+      if (weatherChart) { weatherChart.destroy(); }
+      weatherChart = new Chart(ctxChart, {
+        type: 'line',
+        data: {
+          labels: chartLabels,
+          datasets: [{
+            label: '气温 (°C)',
+            data: chartTemps,
+            borderColor: '#007bff',
+            backgroundColor: 'rgba(0, 123, 255, 0.1)',
+            borderWidth: 2,
+            pointBackgroundColor: '#fff',
+            pointBorderColor: '#007bff',
+            pointRadius: 3,
+            fill: true,
+            tension: 0.4 
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false, 
+          layout: {
+            padding: { top: 88, right: 18, bottom: 8, left: 8 }
+          },
+          plugins: { legend: { display: false } }, 
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { autoSkip: true, maxRotation: 0 }
+            }, 
+            y: { grid: { color: 'rgba(0,0,0,0.05)' } }
+          }
+        }
+      });
+    }
+  } catch (error) { 
+    if(container) container.innerHTML = "获取小时天气失败"; 
+  }
+}
+
+// 获取未来7天预报及实时气象详情
+async function fetchWeather() {
+  if (weatherFetchPromise) return weatherFetchPromise;
+
+  weatherFetchPromise = (async () => {
+    const container = document.getElementById('weather-container');
+    try {
+      const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${myLat}&longitude=${myLon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,wind_speed_10m,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Asia%2FShanghai`);
+      const data = await res.json();
+      let html = '';
+
+      for (let i = 0; i < 7; i++) {
+        const date = data.daily.time[i];
+        const maxT = data.daily.temperature_2m_max[i];
+        const minT = data.daily.temperature_2m_min[i];
+        const code = data.daily.weathercode[i];
+        const weatherInfo = getWeatherInfo(code);
+        html += `<div class="weather-card"><div style="color: var(--text-sub); font-size: 12px;">${date}</div><div style="font-size: 30px; margin: 10px 0;">${weatherInfo.icon}</div><div><strong>${maxT}°</strong> / ${minT}°</div></div>`;
+      }
+      if (container) container.innerHTML = html;
+
+      if (data.current) {
+        const elFeels = document.getElementById('cw-feels');
+        const elHum = document.getElementById('cw-humidity');
+        const elWind = document.getElementById('cw-wind');
+        const elRain = document.getElementById('cw-rain');
+
+        if (elFeels) elFeels.innerText = data.current.apparent_temperature + ' °C';
+        if (elHum) elHum.innerText = data.current.relative_humidity_2m + ' %';
+        if (elWind) elWind.innerText = data.current.wind_speed_10m + ' km/h';
+        if (elRain) elRain.innerText = data.current.precipitation + ' mm';
+      }
+
+      todayWeatherSnapshot = {
+        fetchedAt: Date.now(),
+        dailyCode: data.daily.weathercode[0],
+        maxTemp: data.daily.temperature_2m_max[0],
+        minTemp: data.daily.temperature_2m_min[0],
+        currentCode: data.current.weathercode,
+        currentTemp: data.current.temperature_2m,
+        apparentTemp: data.current.apparent_temperature,
+        humidity: data.current.relative_humidity_2m,
+        windSpeed: data.current.wind_speed_10m,
+        precipitation: data.current.precipitation
+      };
+
+      return todayWeatherSnapshot;
+    } catch (error) {
+      if (container) container.innerHTML = "获取天气失败，请检查网络连接。";
+      return null;
+    } finally {
+      weatherFetchPromise = null;
+    }
+  })();
+
+  return weatherFetchPromise;
+}
+
+ws.onmessage = (event) => {
+  const msg = JSON.parse(event.data);
+  if (msg.type === 'AGENT_LOG') console.log("AI状态更新: ", msg.log); 
+  else if (msg.type === 'STATE_UPDATE') renderUI(msg.data);
+};
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[char]));
+}
+
+// 动态渲染设备，联动滑动开关
+function renderUI(state) {
+  document.getElementById('projDate').innerText = new Date().toLocaleDateString();
+  document.getElementById('projClock').innerText = new Date().toTimeString().split(' ')[0];
+  
+  if (state.devices) {
+    currentDevicesState = state.devices;
+    const deviceKeys = [
+      'door_main', 'door_bedroom', 'door_toilet', 'door_balcony',
+      'light_living', 'light_bedroom', 'light_kitchen', 'light_toilet', 'light_balcony',
+      'window_living', 'window_bedroom', 'window_kitchen',
+      'ac', 'water_heater', 'kettle', 'washer', 'tv', 'fan'
+    ];
+    
+    deviceKeys.forEach(key => {
+      const el = document.getElementById(`dev-${key}`);
+      const toggle = document.getElementById(`switch-${key}`); 
+      const serverVal = state.devices[key] || '关闭';
+      const previousVal = previousDeviceState[key];
+
+      if (previousVal !== undefined && previousVal !== serverVal) {
+        queueDeviceDemo(key, serverVal, previousVal);
+      }
+      previousDeviceState[key] = serverVal;
+
+      if(el) {
+        // 如果后端传来的状态已经和我们点击的期望状态一致了，解除锁定
+        if (pendingDeviceStates[key] === serverVal) {
+          delete pendingDeviceStates[key];
+        }
+        
+        // 如果处于锁定状态，强制显示点击状态；否则正常显示后端最新状态
+        const displayVal = pendingDeviceStates[key] ? pendingDeviceStates[key] : serverVal;
+        
+        el.innerText = displayVal;
+        el.className = displayVal === '开启' ? 'on' : 'off';
+        
+        // 只有在没被锁定时，才允许后端数据去改变滑块的位置
+        if(toggle && !pendingDeviceStates[key]) {
+          toggle.checked = (displayVal === '开启');
+        }
+      }
+    });
+  }
+  
+  const taskInfo = document.getElementById('taskInfo');
+  const taskNameEl = document.getElementById('taskName');
+  const timeLeftEl = document.getElementById('timeLeft');
+  const scheduleHintEl = document.getElementById('taskScheduleHint');
+  const pendingOverlayEl = document.getElementById('pendingTaskOverlay');
+  const pendingTasks = Array.isArray(state.pendingTasks) ? state.pendingTasks : [];
+  const renderPendingOverlay = tasks => {
+    if (!pendingOverlayEl) return;
+    pendingOverlayEl.innerHTML = tasks.map(task => `
+      <div class="pending-task-entry">
+        <span>${escapeHtml(task.name)}</span>
+        <time>${escapeHtml(task.scheduledTime || '等待')}</time>
+      </div>`).join('');
+  };
+
+  if (state.activeTask) {
+    const rem = state.activeTask.remaining;
+    const timeStr = `${String(Math.floor(rem / 60)).padStart(2, '0')}:${String(rem % 60).padStart(2, '0')}`;
+    taskInfo?.classList.remove('scheduled-center');
+    if (taskNameEl) taskNameEl.innerText = state.activeTask.name;
+    if (timeLeftEl) timeLeftEl.innerText = timeStr;
+    if (scheduleHintEl) {
+      scheduleHintEl.innerText = state.activeTask.startTime && state.activeTask.endTime
+        ? `${state.activeTask.startTime} - ${state.activeTask.endTime}`
+        : '当前任务';
+    }
+    drawCanvas(1 - (rem / state.activeTask.totalSeconds), rem <= 300);
+    renderPendingOverlay(pendingTasks);
+  } else if (pendingTasks.length) {
+    const nextTask = pendingTasks[0];
+    taskInfo?.classList.add('scheduled-center');
+    if (taskNameEl) taskNameEl.innerText = nextTask.name;
+    if (timeLeftEl) timeLeftEl.innerText = nextTask.scheduledTime || '等待';
+    if (scheduleHintEl) scheduleHintEl.innerText = '预计执行';
+    drawCanvas(0, false);
+    renderPendingOverlay(pendingTasks.slice(1));
+  } else {
+    taskInfo?.classList.remove('scheduled-center');
+    if (taskNameEl) taskNameEl.innerText = "等待任务执行";
+    if (timeLeftEl) timeLeftEl.innerText = "--:--";
+    if (scheduleHintEl) scheduleHintEl.innerText = '';
+    drawCanvas(0, false);
+    renderPendingOverlay([]);
+  }
+  
+}
+
+function drawCanvas(percent, isAlert) {
+  ctx.clearRect(0, 0, 200, 200);
+  ctx.beginPath(); ctx.arc(100, 100, 80, 0, 2 * Math.PI); ctx.strokeStyle = '#333'; ctx.lineWidth = 10; ctx.stroke();
+  ctx.beginPath(); ctx.arc(100, 100, 80, -0.5 * Math.PI, (2 * Math.PI * percent) - 0.5 * Math.PI);
+  ctx.strokeStyle = isAlert ? '#ff3333' : '#00ffff'; ctx.lineWidth = 10; ctx.stroke();
+}

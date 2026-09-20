@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>居家管理辅助控制系统</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- 引入谷歌 3D 渲染引擎 -->
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+  <!-- 引入 Chart.js 用于绘制折线图 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- 左侧导航栏 -->
+    <aside class="sidebar-block">
+      <div class="nav-items">
+        <div class="nav-item active" onclick="switchPage('overview', this)">🏠 总览</div>
+        <div class="nav-item" onclick="switchPage('appliances', this)">📺 家电</div>
+        <div class="nav-item" onclick="switchPage('weather', this)">🌤️ 天气</div>
+        <div class="nav-item" onclick="switchPage('settings', this)">⚙️ 设置</div>
+      </div>
+      <button class="wake-btn" onclick="summonButler()">🎙 呼唤管家</button>
+    </aside>
+
+    <!-- 右侧主内容区 -->
+    <main class="main-block">
+      <header class="top-header-center">
+        <h2>居家管理 Agent 中控台</h2>
+        <div class="subtitle">AI赋能设计，全屋智能托管</div>
+        <div class="weather-time">
+          <span id="projDate">--</span> | 
+          <span id="projClock">--:--:--</span>
+        </div>
+      </header>
+
+      <!-- 页面 1：总览 -->
+      <div id="page-overview" class="page-view active">
+        <div class="grid-layout">
+          
+          <div class="card hourly-weather-card">
+            <h3>今日气温 (24h)</h3>
+            <div id="hourlyWeatherContainer" class="hourly-weather-scroll">
+              <div style="padding: 20px; color: #666;">加载中...</div>
+            </div>
+          </div>
+
+          <div class="card projection-card">
+            <h3>任务计时</h3>
+            <div class="projection-screen">
+              <canvas id="timerCanvas" width="200" height="200"></canvas>
+              <div class="task-info" id="taskInfo">
+                <div id="taskName">等待任务执行</div>
+                <div id="timeLeft">--:--</div>
+                <div id="taskScheduleHint" class="task-schedule-hint"></div>
+              </div>
+              <div class="pending-task-overlay" id="pendingTaskOverlay"></div>
+            </div>
+          </div>
+
+          <div class="card input-card">
+            <h3>语音指令模拟</h3>
+            <div class="input-group">
+              <input type="text" id="userInput" placeholder="例如：帮我打开卧室门，并设定洗衣机45分钟...">
+              <button onclick="sendVoiceCommand()">发送</button>
+            </div>
+          </div>
+
+          <!-- 右侧：3D 数字人 AI 管家 -->
+          <div class="card avatar-card digital-human-card">
+            <div class="avatar-card-head">
+              <div>
+                <span class="avatar-kicker">WEB DIGITAL HUMAN</span>
+                <h3>AI 3D 数字人管家</h3>
+              </div>
+              <div class="avatar-online"><span></span>在线</div>
+            </div>
+
+            <div class="avatar-container">
+              <div class="avatar-3d-wrapper" id="avatarStage">
+                <div class="avatar-grid"></div>
+                <div class="avatar-aura"></div>
+                <div class="orbit orbit-a"></div>
+                <div class="orbit orbit-b"></div>
+                <div class="orbit orbit-c"></div>
+                <div class="hologram-base" id="hologramBase"></div>
+                <div class="human-silhouette" aria-hidden="true">
+                  <div class="figure-shadow"></div>
+
+                  <div class="figure-leg figure-leg-left"><span class="figure-shoe"></span></div>
+                  <div class="figure-leg figure-leg-right"><span class="figure-shoe"></span></div>
+
+                  <div class="figure-torso">
+                    <div class="figure-shirt"></div>
+                    <div class="figure-vest"></div>
+                    <div class="figure-tie"></div>
+                  </div>
+
+                  <div class="figure-arm figure-arm-left">
+                    <span class="figure-sleeve"></span>
+                    <span class="figure-hand"></span>
+                  </div>
+                  <div class="figure-arm figure-arm-right">
+                    <span class="figure-sleeve"></span>
+                    <span class="figure-hand"></span>
+                  </div>
+
+                  <div class="figure-neck"></div>
+                  <div class="figure-head">
+                    <span class="figure-ear figure-ear-left"></span>
+                    <span class="figure-ear figure-ear-right"></span>
+                    <span class="figure-hair"></span>
+                    <span class="figure-brow figure-brow-left"></span>
+                    <span class="figure-brow figure-brow-right"></span>
+                    <span class="figure-eye figure-eye-left"><i></i></span>
+                    <span class="figure-eye figure-eye-right"><i></i></span>
+                    <span class="figure-nose"></span>
+                    <span class="figure-mouth"></span>
+                  </div>
+                </div>
+
+                <model-viewer
+                  id="avatar-3d"
+                  src="https://models.readyplayer.me/64bfa15f0b2f3f0b7b4b1f1e.glb"
+                  data-fallback-src="https://three.ws/avatars/michelle.glb"
+                  data-final-fallback-src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r170/examples/models/gltf/Xbot.glb"
+                  alt="写实 3D AI 数字人管家"
+                  camera-controls
+                  touch-action="none"
+                  autoplay
+                  auto-rotate
+                  rotation-per-second="6deg"
+                  shadow-intensity="1.6"
+                  shadow-softness="0.8"
+                  exposure="1.1"
+                  tone-mapping="neutral"
+                  environment-image="neutral"
+                  camera-orbit="-12deg 76deg auto"
+                  min-camera-orbit="auto 55deg auto"
+                  max-camera-orbit="auto 105deg auto"
+                  field-of-view="24deg"
+                  interaction-prompt="none">
+                </model-viewer>
+
+                <div class="device-demo-layer" id="deviceDemoLayer" aria-live="polite"></div>
+
+                <div class="sound-wave" aria-hidden="true">
+                  <span></span><span></span><span></span><span></span><span></span>
+                  <span></span><span></span><span></span><span></span>
+                </div>
+
+                <div class="avatar-hud">
+                  <span class="hud-label">AI BUTLER</span>
+                  <span class="hud-line"></span>
+                  <span class="hud-value">HOME AGENT</span>
+                </div>
+
+                <div class="avatar-caption">
+                  <span class="caption-dot"></span>
+                  <div>
+                    <strong id="avatarCaptionTitle">管家在线</strong>
+                    <p id="avatarStatusText" class="avatar-status">先生，随时听候您的差遣。</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="avatar-actions">
+                <button class="avatar-action primary" type="button" onclick="startAvatarListening()">🎙 对管家说话</button>
+                <button class="avatar-action" type="button" onclick="greetDigitalHuman()">👋 打招呼</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- 页面 2：家电 (滑动开关版) -->
+      <div id="page-appliances" class="page-view">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          
+          <!-- 门类 -->
+          <div class="card">
+            <h3>🚪 门控系统</h3>
+            <div class="device-grid">
+              <div class="device-item"><span>大门</span><strong id="dev-door_main" class="off">关闭</strong>
+                <label class="switch"><input type="checkbox" id="switch-door_main" onchange="toggleDevice('door_main', '大门')"><span class="slider"></span></label>
+              </div>
+              <div class="device-item"><span>卧室门</span><strong id="dev-door_bedroom" class="off">关闭</strong>
+                <label class="switch"><input type="checkbox" id="switch-door_bedroom" onchange="toggleDevice('door_bedroom', '卧室门')"><span class="slider"></span></label>
+              </div>
+              <div class="device-item"><span>厕所门</span><strong id="dev-door_toilet" class="off">关闭</strong>
+                <label class="switch"><input type="checkbox" id="switch-door_toilet" onchange="toggleDevice('door_toilet', '厕所门')"><span class="slider"></span></label>
+              </div>
+              <div class="device-item"><span>阳台门</span><strong id="dev-door_balcony" class="off">关闭</strong>
+                <label class="switch"><input type="checkbox" id="switch-door_balcony" onchange="toggleDevice('door_balcony', '阳台门')"><span class="slider"></span></label>
+              </div>
+            </div>
+          </div>
+
+          <!-- 灯类 -->
+          <div class="card">
+            <h3>💡 照明系统</h3>
+            <div class="device-grid">
+              <div class="device-item"><span>客厅灯</span><strong id="dev-light_living" class="off">关闭</strong>
+                <label class="switch"><input type="checkbox" id="switch-light_living" onchange="toggleDevice('light_living', '客厅灯')"><span class="slider"></span></label>
+              </div>
+              <div class="device-item"><span>卧室灯</span><strong id="dev-light_bedroom" class="off">关闭</strong>
+                <label class="switch"><input type="checkbox" id="switch-light_bedroom" onchange="toggleDevice('light_bedroom', '卧室灯')"><span class="slider"></span></label>
+              </div>
+              <div class="device-item"><span>厨房灯</span><strong id="dev-light_kitchen" class="off">关闭</strong>
+                <label class="switch"><input type="checkbox" id="switch-light_kitchen" onchange="toggleDevice('light_kitchen', '厨房灯')"><span class="slider"></span></label>
+              </div>
+              <div class="device-item"><span>厕所灯</span><strong id="dev-light_toilet" class="off">关闭</strong>
+                <label class="switch"><input type="checkbox" id="switch-light_toilet" onchange="toggleDevice('light_toilet', '厕所灯')"><span class="slider"></span></label>
+              </div>
+              <div class="device-item"><span>阳台灯</span><strong id="dev-light_balcony" class="off">关闭</strong>
+                <label class="switch"><input type="checkbox" id="switch-light_balcony" onchange="toggleDevice('light_balcony', '阳台灯')"><span class="slider"></span></label>
+              </div>
+            </div>
+          </div>
+
+          <!-- 窗户类 -->
+          <div class="card">
+            <h3>🪟 窗户控制</h3>
+            <div class="device-grid">
+              <div class="device-item"><span>客厅窗</span><strong id="dev-window_living" class="off">关闭</strong>
+                <label class="switch"><input type="checkbox" id="switch-window_living" onchange="toggleDevice('window_living', '客厅窗')"><span class="slider"></span></label>
+              </div>
+              <div class="device-item"><span>卧室窗</span><strong id="dev-window_bedroom" class="off">关闭</strong>
+                <label class="switch"><input type="checkbox" id="switch-window_bedroom" onchange="toggleDevice('window_bedroom', '卧室窗')"><span class="slider"></span></label>
+              </div>
+              <div class="device-item"><span>厨房窗</span><strong id="dev-window_kitchen" class="off">关闭</strong>
+                <label class="switch"><input type="checkbox" id="switch-window_kitchen" onchange="toggleDevice('window_kitchen', '厨房窗')"><span class="slider"></span></label>
+              </div>
+            </div>
+          </div>
+
+          <!-- 其它家电 -->
+          <div class="card">
+            <h3>📺 生活电器</h3>
+            <div class="device-grid">
+              <div class="device-item"><span>空调</span><strong id="dev-ac" class="off">关闭</strong>
+                <label class="switch"><input type="checkbox" id="switch-ac" onchange="toggleDevice('ac', '空调')"><span class="slider"></span></label>
+              </div>
+              <div class="device-item"><span>热水器</span><strong id="dev-water_heater" class="off">关闭</strong>
+                <label class="switch"><input type="checkbox" id="switch-water_heater" onchange="toggleDevice('water_heater', '热水器')"><span class="slider"></span></label>
+              </div>
+              <div class="device-item"><span>煮水设备</span><strong id="dev-kettle" class="off">关闭</strong>
+                <label class="switch"><input type="checkbox" id="switch-kettle" onchange="toggleDevice('kettle', '煮水设备')"><span class="slider"></span></label>
+              </div>
+              <div class="device-item"><span>洗衣机</span><strong id="dev-washer" class="off">关闭</strong>
+                <label class="switch"><input type="checkbox" id="switch-washer" onchange="toggleDevice('washer', '洗衣机')"><span class="slider"></span></label>
+              </div>
+              <div class="device-item"><span>电视</span><strong id="dev-tv" class="off">关闭</strong>
+                <label class="switch"><input type="checkbox" id="switch-tv" onchange="toggleDevice('tv', '电视')"><span class="slider"></span></label>
+              </div>
+              <div class="device-item"><span>风扇</span><strong id="dev-fan" class="off">关闭</strong>
+                <label class="switch"><input type="checkbox" id="switch-fan" onchange="toggleDevice('fan', '风扇')"><span class="slider"></span></label>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- 页面 3：天气 -->
+      <div id="page-weather" class="page-view">
+        <div class="card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+            <h3 style="border: none; margin: 0; padding: 0;">未来 7 天真实天气预报 (API实时数据)</h3>
+            <div id="location-display" style="font-size: 15px; color: #007bff; font-weight: bold;">
+              📍 正在请求浏览器定位权限...
+            </div>
+          </div>
+          <div id="weather-container" class="weather-grid">加载中...</div>
+        </div>
+
+        <div class="card weather-trend-card">
+          <h3>🧭 当前气象细节与 24h 趋势</h3>
+          <div class="weather-chart-wrapper">
+            <div class="weather-metrics-overlay">
+              <div class="weather-metric weather-metric-feels">
+                <span>体感温度</span>
+                <strong id="cw-feels" class="metric-feels">--</strong>
+              </div>
+              <div class="weather-metric weather-metric-humidity">
+                <span>相对湿度</span>
+                <strong id="cw-humidity" class="metric-humidity">--</strong>
+              </div>
+              <div class="weather-metric weather-metric-wind">
+                <span>实时风速</span>
+                <strong id="cw-wind" class="metric-wind">--</strong>
+              </div>
+              <div class="weather-metric weather-metric-rain">
+                <span>降水量</span>
+                <strong id="cw-rain" class="metric-rain">--</strong>
+              </div>
+            </div>
+
+            <div class="weather-chart-area">
+              <canvas id="weatherTrendChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 页面 4：设置 -->
+      <div id="page-settings" class="page-view">
+        <div class="card">
+          <h3>界面显示设置</h3>
+          <div class="setting-item" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>界面明暗度模式 (浅色/深色)</span>
+            <button class="toggle-btn" onclick="toggleTheme()">切换明暗模式</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+          <h3>AI 大脑配置 (动态模型接入)</h3>
+          <div class="setting-box">
+            <label>1. 选择底层大模型：</label>
+            <div class="radio-group">
+              <label><input type="radio" name="provider" value="deepseek" checked onchange="updatePlaceholder()"> DeepSeek</label>
+              <label><input type="radio" name="provider" value="qwen" onchange="updatePlaceholder()"> 通义千问</label>
+              <label><input type="radio" name="provider" value="doubao" onchange="updatePlaceholder()"> 豆包 (Volcengine)</label>
+            </div>
+          </div>
+          <div class="setting-box">
+            <label>2. 填入对应的 API Key：</label>
+            <input type="password" id="apiKeyInput" placeholder="请输入 DeepSeek 密钥 (通常以 sk- 开头)..." class="api-input">
+          </div>
+          <div class="setting-box">
+            <label>3. 调度严格程度 (Temperature)：</label>
+            <div class="radio-group">
+              <label><input type="radio" name="level" value="low" checked> 低 (精准控制，不易出错)</label>
+              <label><input type="radio" name="level" value="medium"> 中 (均衡反馈)</label>
+              <label><input type="radio" name="level" value="high"> 高 (发散思维，适合闲聊)</label>
+            </div>
+          </div>
+          <div style="margin-top: 20px; display: flex; align-items: center; gap: 15px;">
+            <button class="wake-btn" style="margin: 0; background: #007bff;" onclick="saveConfig('permanent')">💾 保存配置 (永久)</button>
+            <button class="wake-btn" style="margin: 0; background: #ed8936;" onclick="saveConfig('session')">🕒 仅本次使用 (网页关即删)</button>
+            <span id="saveStatus" style="color: #48bb78; font-weight: bold; display: none;">✓ 已生效</span>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <div class="global-voice-panel" id="globalVoicePanel" aria-live="polite" aria-hidden="true">
+    <span class="global-voice-pulse"><i></i></span>
+    <div class="global-voice-copy">
+      <strong id="globalVoiceTitle">呼唤管家</strong>
+      <span id="globalVoiceText">正在准备语音通道...</span>
+    </div>
+    <button type="button" class="global-voice-close" onclick="hideGlobalVoiceStatus(true)" aria-label="关闭语音状态">×</button>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
