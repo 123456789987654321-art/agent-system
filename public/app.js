@@ -15,9 +15,12 @@ let weatherChart = null;
 let todayWeatherSnapshot = null;
 let weatherFetchPromise = null;
 let avatarRecognition = null;
+let avatarSilenceTimer = null;
 let avatarModelSourceIndex = 0;
 let speechInProgress = false;
 let globalVoiceHideTimer = null;
+const AVATAR_INITIAL_TIMEOUT_MS = 6000;
+const AVATAR_SILENCE_TIMEOUT_MS = 1200;
 let deviceDemoActive = false;
 let deviceDemoFlushTimer = null;
 let deviceDemoTimers = [];
@@ -254,11 +257,6 @@ async function sendVoiceCommand() {
   const apiKey = document.getElementById('apiKeyInput').value;
   const provider = document.querySelector('input[name="provider"]:checked').value;
   const level = document.querySelector('input[name="level"]:checked').value;
-
-  if (!apiKey) {
-    agentSpeak("请先前往设置页面，填入您的 AI 密钥。");
-    return;
-  }
 
   document.getElementById('userInput').value = '';
   console.log(`[发送指令]: "${text}"`);
@@ -640,17 +638,24 @@ function startAvatarListening() {
 
   avatarRecognition = new SpeechRecognition();
   avatarRecognition.lang = 'zh-CN';
-  avatarRecognition.continuous = false;
+  avatarRecognition.continuous = true;
   avatarRecognition.interimResults = true;
   avatarRecognition.maxAlternatives = 1;
 
   let heardText = '';
+  const scheduleAutoStop = (delay = AVATAR_SILENCE_TIMEOUT_MS) => {
+    clearTimeout(avatarSilenceTimer);
+    avatarSilenceTimer = setTimeout(() => {
+      if (avatarRecognition) avatarRecognition.stop();
+    }, delay);
+  };
 
   avatarRecognition.onstart = () => {
     if (stage) stage.classList.add('listening');
     if (titleEl) titleEl.innerText = '正在聆听';
     if (statusEl) statusEl.innerText = '请说出您的指令...';
-    showGlobalVoiceStatus('正在聆听', '请说出您的指令，例如“打开卧室灯”。', 'listening');
+    showGlobalVoiceStatus('正在聆听', '请连续说出指令，例如“打开空调，再打开风扇”。', 'listening');
+    scheduleAutoStop(AVATAR_INITIAL_TIMEOUT_MS);
   };
 
   avatarRecognition.onresult = (event) => {
@@ -659,14 +664,19 @@ function startAvatarListening() {
     if (input) input.value = heardText;
     if (statusEl) statusEl.innerText = heardText || '正在识别...';
     showGlobalVoiceStatus('识别中', heardText || '正在识别语音...', 'thinking');
+    scheduleAutoStop();
   };
 
   avatarRecognition.onerror = () => {
+    clearTimeout(avatarSilenceTimer);
+    avatarSilenceTimer = null;
     if (statusEl) statusEl.innerText = '没有听清，请再试一次。';
     showGlobalVoiceStatus('没有听清', '请靠近麦克风再试一次。', 'idle');
   };
 
   avatarRecognition.onend = () => {
+    clearTimeout(avatarSilenceTimer);
+    avatarSilenceTimer = null;
     if (stage) stage.classList.remove('listening');
     if (titleEl) titleEl.innerText = '管家在线';
     avatarRecognition = null;
@@ -681,6 +691,8 @@ function startAvatarListening() {
   try {
     avatarRecognition.start();
   } catch (error) {
+    clearTimeout(avatarSilenceTimer);
+    avatarSilenceTimer = null;
     avatarRecognition = null;
     if (stage) stage.classList.remove('listening');
     if (statusEl) statusEl.innerText = '语音识别启动失败，请稍后再试。';
