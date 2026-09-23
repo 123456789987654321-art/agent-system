@@ -622,14 +622,8 @@ function renderTaskReports(reports) {
 }
 
 function announceMissedReports() {
-  if (missedReportsAnnounced) return;
-  if (isAgentOffline()) return;
-  if (!pendingReports.length) return;
-  missedReportsAnnounced = true;
-  const text = pendingReports.length > 1
-    ? '你有' + pendingReports.length + '项任务没有按时完成，请查看任务报告'
-    : '你有一项任务没有按时完成，请查看任务报告';
-  setTimeout(() => agentSpeak(text), 800);
+  // 不自动播报：未读记录只用角标提示，需要用户点阅读或说念任务报时才播报
+  missedReportsAnnounced = pendingReports.length > 0;
 }
 
 async function sendVoiceCommand() {
