@@ -100,7 +100,6 @@
               <div class="task-report-panel" id="taskReportPanel" hidden>
                 <div class="task-report-head">
                   <strong>报告</strong>
-                  <button type="button" class="task-report-read-all" onclick="markAllReportsRead()">全部已读</button>
                 </div>
                 <div class="task-report-tabs">
                   <button type="button" class="task-report-tab is-active" id="reportTabTask" onclick="switchReportTab('task')">任务报</button>
@@ -109,6 +108,7 @@
                 <div id="reportBodyTask">
                   <div class="daily-report-actions">
                     <button type="button" class="task-report-read-all" onclick="speakReport('task')">🔊 让数字人阅读任务报</button>
+                    <button type="button" class="task-report-read-all" onclick="markAllReportsRead()">✓ 全部已读</button>
                   </div>
                   <div class="task-report-list" id="taskReportList"></div>
                 </div>

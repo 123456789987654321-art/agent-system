@@ -424,6 +424,13 @@ function dailyWeatherText(report) {
   return report.weather.text + '，气温 ' + min + ' 到 ' + max + ' 摄氏度';
 }
 
+let expandedDailyDate = '';
+
+function toggleDailyReport(date) {
+  expandedDailyDate = expandedDailyDate === date ? '' : date;
+  renderDailyReports(dailyReportCache);
+}
+
 function renderDailyReports(reports) {
   const listEl = document.getElementById('dailyReportList');
   if (!listEl) return;
@@ -431,18 +438,39 @@ function renderDailyReports(reports) {
     listEl.innerHTML = '<p class=\'task-report-empty\'>暂无每日报，每天 0 点自动汇总前一天</p>';
     return;
   }
+  if (!expandedDailyDate) expandedDailyDate = reports[0].date;
+
   listEl.innerHTML = reports.map(report => {
-    const tasks = (report.tasks && report.tasks.length)
-      ? report.tasks.map(task => '<li><span>' + (task.startTime || '--:--') + (task.endTime ? ' - ' + task.endTime : '') + '</span>' + escapeHtml(task.name) + '</li>').join('')
-      : '<li class=\'daily-report-none\'>这一天没有任务记录</li>';
-    const devices = (report.devices && report.devices.length)
-      ? report.devices.map(device => '<li><span>' + escapeHtml(device.name) + '</span>开了 ' + device.count + ' 次</li>').join('')
-      : '<li class=\'daily-report-none\'>这一天没有家电开启记录</li>';
-    return '<div class=\'daily-report-item\'>'
-      + '<div class=\'daily-report-title\'>' + escapeHtml(report.label || report.date) + '<span>' + escapeHtml(report.date) + '</span></div>'
-      + '<div class=\'daily-report-section\'><strong>天气</strong><p>' + escapeHtml(dailyWeatherText(report)) + '</p></div>'
-      + '<div class=\'daily-report-section\'><strong>做的事</strong><ul>' + tasks + '</ul></div>'
-      + '<div class=\'daily-report-section\'><strong>家电开启次数</strong><ul>' + devices + '</ul></div>'
+    const expanded = report.date === expandedDailyDate;
+    const info = getWeatherInfo(report.weather ? report.weather.code : -1);
+    const temp = report.weather ? Math.round(report.weather.min) + '~' + Math.round(report.weather.max) + '℃' : '--';
+    const tasks = report.tasks || [];
+    const devices = report.devices || [];
+    const deviceTotal = devices.reduce((sum, device) => sum + device.count, 0);
+    const summary = '<span class=\'daily-weather\'>' + info.icon + ' ' + info.text + ' ' + temp + '</span>'
+      + '<span class=\'report-chip\'>任务 ' + tasks.length + '</span>'
+      + '<span class=\'report-chip\'>家电 ' + deviceTotal + ' 次</span>';
+
+    let detail = '';
+    if (expanded) {
+      const taskText = tasks.length
+        ? tasks.map(task => '<span class=\'daily-task\'>' + (task.startTime || '--:--') + ' ' + escapeHtml(task.name) + '</span>').join('')
+        : '<span class=\'daily-none\'>无</span>';
+      const deviceText = devices.length
+        ? devices.map(device => '<span class=\'report-chip\'>' + escapeHtml(device.name) + ' ×' + device.count + '</span>').join('')
+        : '<span class=\'daily-none\'>无</span>';
+      detail = '<div class=\'daily-report-detail\'>'
+        + '<div class=\'daily-line\'><span>做的事</span><div>' + taskText + '</div></div>'
+        + '<div class=\'daily-line\'><span>家电</span><div>' + deviceText + '</div></div>'
+        + '</div>';
+    }
+
+    return '<div class=\'daily-report-item' + (expanded ? ' is-open' : '') + '\' onclick="toggleDailyReport(\'' + report.date + '\')">'
+      + '<div class=\'daily-report-summary\'>'
+      + '<strong>' + escapeHtml(shortDayLabel(report)) + '</strong>'
+      + summary
+      + '</div>'
+      + detail
       + '</div>';
   }).join('');
 }
@@ -508,9 +536,14 @@ function speakTaskReport() {
   }
   const items = taskReportCache.map(report => {
     const time = new Date(report.missedAt).toLocaleTimeString().slice(0, 5);
-    return time + '的' + report.name + (report.read ? '已经看过' : '还没看过');
+    return spokenClock(time) + '，' + report.name;
   });
-  agentSpeak('现在为你播报任务报。今天一共 ' + taskReportCache.length + ' 条记录：' + items.join('；') + '。');
+  if (items.length === 1) {
+    agentSpeak('今天的任务报有 1 条：' + items[0] + '。');
+    return;
+  }
+  const numbered = items.map((item, index) => '第' + (index + 1) + '条，' + item).join('；');
+  agentSpeak('今天的任务报一共 ' + items.length + ' 条：' + numbered + '。');
 }
 
 function speakDailyReport() {
@@ -519,19 +552,20 @@ function speakDailyReport() {
     return;
   }
   const report = dailyReportCache[0];
-  const parts = ['现在为你播报每日报。' + (report.label || report.date) + '。'];
-  parts.push('天气：' + dailyWeatherText(report) + '。');
+  const parts = ['现在播报' + (report.label || report.date) + '的每日报。'];
+  parts.push(dailyWeatherText(report) + '。');
   if (report.tasks && report.tasks.length) {
-    const tasks = report.tasks.map(task => (task.startTime || '') + (task.endTime ? '到' + task.endTime : '') + '，' + task.name);
-    parts.push('做的事：' + tasks.join('；') + '。');
+    const tasks = report.tasks.map(task => spokenClock(task.startTime) + (task.name ? '，' + task.name : '')).join('；');
+    parts.push('这天做了 ' + report.tasks.length + ' 件事：' + tasks + '。');
   } else {
-    parts.push('这一天没有任务记录。');
+    parts.push('这天没有任务记录。');
   }
   if (report.devices && report.devices.length) {
-    const devices = report.devices.map(device => device.name + '开了' + device.count + '次');
-    parts.push('家电开启次数：' + devices.join('；') + '。');
+    const total = report.devices.reduce((sum, device) => sum + device.count, 0);
+    const devices = report.devices.map(device => device.name + ' ' + device.count + ' 次').join('；');
+    parts.push('家电一共开了 ' + total + ' 次：' + devices + '。');
   } else {
-    parts.push('这一天没有家电开启记录。');
+    parts.push('这天没有家电开启记录。');
   }
   agentSpeak(parts.join(''));
 }
@@ -551,6 +585,20 @@ function parseReportVoiceCommand(text) {
   if (/每日报|日报/.test(compact)) return { kind: 'daily' };
   if (/任务报|任务报告|报告/.test(compact)) return { kind: 'task' };
   return null;
+}
+
+function spokenClock(value) {
+  const parts = String(value || '').split(':');
+  if (parts.length < 2) return String(value || '');
+  return Number(parts[0]) + '点' + parts[1] + '分';
+}
+
+function shortDayLabel(report) {
+  const parts = String((report && report.date) || '').split('-');
+  if (parts.length < 3) return (report && (report.label || report.date)) || '';
+  const date = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  const week = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][date.getDay()] || '';
+  return Number(parts[1]) + '月' + Number(parts[2]) + '日 ' + week;
 }
 
 function renderTaskReports(reports) {
@@ -573,15 +621,18 @@ function renderTaskReports(reports) {
     };
 
     if (!reports.length) {
-      listEl.innerHTML = '<p class=\'task-report-empty\'>暂无任务报告</p>';
+      listEl.innerHTML = '<p class=\'task-report-empty\'>今天还没有任务记录</p>';
     } else {
       listEl.innerHTML = reports.map(report => {
         const time = new Date(report.missedAt).toLocaleTimeString().slice(0, 5);
-        const button = report.read ? '' : '<button type=\'button\' class=\'task-report-read\' data-report-id=\'' + report.id + '\'>阅读</button>';
-        return '<div class=\'task-report-item' + (report.read ? '' : ' is-unread') + '\'>'
-          + '<div class=\'task-report-meta\'><strong>' + escapeHtml(report.name) + '</strong><span>' + time + '</span></div>'
-          + '<p>' + escapeHtml(report.detail || report.text || '') + '</p>'
-          + button
+        const chip = report.read
+          ? '<span class=\'report-chip is-read\'>已读</span>'
+          : '<span class=\'report-chip is-unread\'>未读</span>';
+        const button = report.read ? '' : '<button type=\'button\' class=\'report-mini-btn\' data-report-id=\'' + report.id + '\'>阅读</button>';
+        return '<div class=\'report-row\'>'
+          + '<span class=\'report-time\'>' + time + '</span>'
+          + '<span class=\'report-name\'>' + escapeHtml(report.name) + '</span>'
+          + chip + button
           + '</div>';
       }).join('');
     }
