@@ -48,11 +48,13 @@ function initLocationAndWeather() {
       async (pos) => {
         myLat = pos.coords.latitude;
         myLon = pos.coords.longitude;
+        reportLocation();
         await reverseGeocode(myLat, myLon); 
         fetchHourlyWeather(); 
         fetchWeather();       
       },
       async (err) => {
+        reportLocation();
         if (locDisplay) locDisplay.innerText = `📍 未授权定位，默认: 中国-福建省-福州市 [经度: ${myLon.toFixed(2)}, 纬度: ${myLat.toFixed(2)}]`;
         fetchHourlyWeather();
         fetchWeather();
@@ -61,6 +63,7 @@ function initLocationAndWeather() {
     );
   } else {
     fetchHourlyWeather();
+    reportLocation();
     fetchWeather();
   }
 }
@@ -349,6 +352,7 @@ function toggleReportPanel() {
   if (!panel) return;
   panel.hidden = !panel.hidden;
   if (btn) btn.setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
+  if (!panel.hidden) switchReportTab('task');
 }
 
 async function markReportRead(id) {
@@ -375,11 +379,186 @@ async function markAllReportsRead() {
   }
 }
 
+// 把浏览器定位同步给服务端，供每日报的天气使用
+function reportLocation() {
+  fetch('/api/location', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lat: myLat, lon: myLon })
+  }).catch(() => undefined);
+}
+
+// ==== 报告分支：任务报 / 每日报 ====
+let dailyReportCache = [];
+let taskReportCache = [];
+
+function switchReportTab(tab) {
+  const isDaily = tab === 'daily';
+  const taskBody = document.getElementById('reportBodyTask');
+  const dailyBody = document.getElementById('reportBodyDaily');
+  const taskTab = document.getElementById('reportTabTask');
+  const dailyTab = document.getElementById('reportTabDaily');
+  if (taskBody) taskBody.hidden = isDaily;
+  if (dailyBody) dailyBody.hidden = !isDaily;
+  if (taskTab) taskTab.classList.toggle('is-active', !isDaily);
+  if (dailyTab) dailyTab.classList.toggle('is-active', isDaily);
+  if (isDaily) loadDailyReports();
+}
+
+async function loadDailyReports() {
+  const listEl = document.getElementById('dailyReportList');
+  try {
+    const res = await fetch('/api/daily_reports');
+    const data = await res.json();
+    dailyReportCache = Array.isArray(data.reports) ? data.reports : [];
+    renderDailyReports(dailyReportCache);
+  } catch (error) {
+    if (listEl) listEl.innerHTML = '<p class=\'task-report-empty\'>每日报加载失败</p>';
+  }
+}
+
+function dailyWeatherText(report) {
+  if (!report || !report.weather) return '无天气数据';
+  const min = Math.round(report.weather.min);
+  const max = Math.round(report.weather.max);
+  return report.weather.text + '，气温 ' + min + ' 到 ' + max + ' 摄氏度';
+}
+
+function renderDailyReports(reports) {
+  const listEl = document.getElementById('dailyReportList');
+  if (!listEl) return;
+  if (!reports.length) {
+    listEl.innerHTML = '<p class=\'task-report-empty\'>暂无每日报，每天 0 点自动汇总前一天</p>';
+    return;
+  }
+  listEl.innerHTML = reports.map(report => {
+    const tasks = (report.tasks && report.tasks.length)
+      ? report.tasks.map(task => '<li><span>' + (task.startTime || '--:--') + (task.endTime ? ' - ' + task.endTime : '') + '</span>' + escapeHtml(task.name) + '</li>').join('')
+      : '<li class=\'daily-report-none\'>这一天没有任务记录</li>';
+    const devices = (report.devices && report.devices.length)
+      ? report.devices.map(device => '<li><span>' + escapeHtml(device.name) + '</span>开了 ' + device.count + ' 次</li>').join('')
+      : '<li class=\'daily-report-none\'>这一天没有家电开启记录</li>';
+    return '<div class=\'daily-report-item\'>'
+      + '<div class=\'daily-report-title\'>' + escapeHtml(report.label || report.date) + '<span>' + escapeHtml(report.date) + '</span></div>'
+      + '<div class=\'daily-report-section\'><strong>天气</strong><p>' + escapeHtml(dailyWeatherText(report)) + '</p></div>'
+      + '<div class=\'daily-report-section\'><strong>做的事</strong><ul>' + tasks + '</ul></div>'
+      + '<div class=\'daily-report-section\'><strong>家电开启次数</strong><ul>' + devices + '</ul></div>'
+      + '</div>';
+  }).join('');
+}
+
+async function clearDailyReports() {
+  try {
+    const res = await fetch('/api/daily_report_clear', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ all: true })
+    });
+    const data = await res.json();
+    dailyReportCache = Array.isArray(data.reports) ? data.reports : [];
+    renderDailyReports(dailyReportCache);
+  } catch (error) {
+    console.warn('清除每日报失败', error);
+  }
+}
+
+function downloadDailyReports() {
+  if (!dailyReportCache.length) {
+    showGlobalVoiceStatus('每日报', '还没有可下载的每日报。', 'idle');
+    return;
+  }
+  const lines = ['每日报导出（共 ' + dailyReportCache.length + ' 天）', ''];
+  dailyReportCache.forEach(report => {
+    lines.push(report.label + '（' + report.date + '）');
+    lines.push('天气：' + dailyWeatherText(report));
+    lines.push('做的事：');
+    if (report.tasks && report.tasks.length) {
+      report.tasks.forEach(task => {
+        lines.push('  ' + (task.startTime || '--:--') + (task.endTime ? ' - ' + task.endTime : '') + ' ' + task.name);
+      });
+    } else {
+      lines.push('  无');
+    }
+    lines.push('家电开启次数：');
+    if (report.devices && report.devices.length) {
+      report.devices.forEach(device => {
+        lines.push('  ' + device.name + '：' + device.count + ' 次');
+      });
+    } else {
+      lines.push('  无');
+    }
+    lines.push('');
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = '每日报_' + new Date().toISOString().slice(0, 10) + '.txt';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+// 让数字人朗读报告（按钮与语音共用）
+function speakTaskReport() {
+  if (!taskReportCache.length) {
+    agentSpeak('今天的任务报里还没有记录。');
+    return;
+  }
+  const items = taskReportCache.map(report => {
+    const time = new Date(report.missedAt).toLocaleTimeString().slice(0, 5);
+    return time + '的' + report.name + (report.read ? '已经看过' : '还没看过');
+  });
+  agentSpeak('现在为你播报任务报。今天一共 ' + taskReportCache.length + ' 条记录：' + items.join('；') + '。');
+}
+
+function speakDailyReport() {
+  if (!dailyReportCache.length) {
+    agentSpeak('还没有可以播报的每日报，每天零点我会自动汇总前一天的情况。');
+    return;
+  }
+  const report = dailyReportCache[0];
+  const parts = ['现在为你播报每日报。' + (report.label || report.date) + '。'];
+  parts.push('天气：' + dailyWeatherText(report) + '。');
+  if (report.tasks && report.tasks.length) {
+    const tasks = report.tasks.map(task => (task.startTime || '') + (task.endTime ? '到' + task.endTime : '') + '，' + task.name);
+    parts.push('做的事：' + tasks.join('；') + '。');
+  } else {
+    parts.push('这一天没有任务记录。');
+  }
+  if (report.devices && report.devices.length) {
+    const devices = report.devices.map(device => device.name + '开了' + device.count + '次');
+    parts.push('家电开启次数：' + devices.join('；') + '。');
+  } else {
+    parts.push('这一天没有家电开启记录。');
+  }
+  agentSpeak(parts.join(''));
+}
+
+async function speakReport(kind) {
+  if (kind === 'daily') {
+    if (!dailyReportCache.length) await loadDailyReports();
+    speakDailyReport();
+  } else {
+    speakTaskReport();
+  }
+}
+
+function parseReportVoiceCommand(text) {
+  const compact = String(text || '').replace(/\s+/g, '');
+  if (!/(念|读|播报|朗读|阅读|说一下|讲讲|听一下)/.test(compact)) return null;
+  if (/每日报|日报/.test(compact)) return { kind: 'daily' };
+  if (/任务报|任务报告|报告/.test(compact)) return { kind: 'task' };
+  return null;
+}
+
 function renderTaskReports(reports) {
   const countBadge = document.getElementById('taskReportCount');
   const listEl = document.getElementById('taskReportList');
   const unread = reports.filter(report => !report.read);
   pendingReports = unread;
+  taskReportCache = reports;
 
   if (countBadge) {
     countBadge.hidden = unread.length === 0;
@@ -439,6 +618,14 @@ async function sendVoiceCommand() {
       return;
     }
     agentSpeak(buildWeatherNarrative(snapshot));
+    return;
+  }
+
+  const reportCommand = parseReportVoiceCommand(text);
+  if (reportCommand) {
+    document.getElementById('userInput').value = '';
+    showGlobalVoiceStatus('报告播报', '正在为你朗读报告...', 'speaking');
+    await speakReport(reportCommand.kind);
     return;
   }
 

@@ -827,3 +827,23 @@ body.dark-mode .digital-human-card.agent-offline .avatar-online { background: rg
 
 /* 任务控制按钮分组：同组内不换行，整组一起换行 */
 .task-ctrl-group { display: inline-flex; flex-wrap: nowrap; align-items: center; gap: 8px; }
+
+/* 每日报与任务报切换 */
+.task-report-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+.task-report-tab {
+  padding: 5px 12px; border-radius: 999px; cursor: pointer; font-size: 12px;
+  border: 1px solid var(--border-color); background: transparent; color: var(--text-sub);
+}
+.task-report-tab.is-active { border-color: #007bff; color: #007bff; background: rgba(0, 123, 255, 0.08); font-weight: bold; }
+.daily-report-actions { display: flex; gap: 8px; margin-bottom: 10px; }
+.daily-report-list { display: flex; flex-direction: column; gap: 10px; max-height: 280px; overflow-y: auto; }
+.daily-report-item { padding: 10px; border: 1px solid var(--border-color); border-radius: 10px; background: rgba(0, 123, 255, 0.04); font-size: 12px; }
+.daily-report-title { display: flex; align-items: center; justify-content: space-between; font-weight: bold; margin-bottom: 8px; }
+.daily-report-title span { color: var(--text-sub); font-weight: normal; font-size: 11px; }
+.daily-report-section { margin-bottom: 6px; }
+.daily-report-section strong { display: block; color: var(--text-sub); font-size: 11px; margin-bottom: 3px; }
+.daily-report-section p { margin: 0; color: var(--text-main); }
+.daily-report-section ul { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; }
+.daily-report-section li { display: flex; justify-content: space-between; gap: 8px; color: var(--text-main); }
+.daily-report-section li span { color: var(--text-sub); }
+.daily-report-none { color: var(--text-sub); }

@@ -91,7 +91,7 @@
                 <h3>AI 3D 数字人管家</h3>
               </div>
               <div class="avatar-head-actions">
-                <button type="button" class="task-report-btn" id="taskReportBtn" onclick="toggleReportPanel()" aria-expanded="false">📋 任务报告<span class="task-report-count" id="taskReportCount" hidden>0</span></button>
+                <button type="button" class="task-report-btn" id="taskReportBtn" onclick="toggleReportPanel()" aria-expanded="false">📋 报告<span class="task-report-count" id="taskReportCount" hidden>0</span></button>
                 <div class="avatar-online" id="avatarOnlineBadge"><span class="avatar-online-dot"></span><span class="avatar-online-text">在线</span></div>
               </div>
             </div>
@@ -99,10 +99,27 @@
             <div class="avatar-container">
               <div class="task-report-panel" id="taskReportPanel" hidden>
                 <div class="task-report-head">
-                  <strong>任务报告</strong>
+                  <strong>报告</strong>
                   <button type="button" class="task-report-read-all" onclick="markAllReportsRead()">全部已读</button>
                 </div>
-                <div class="task-report-list" id="taskReportList"></div>
+                <div class="task-report-tabs">
+                  <button type="button" class="task-report-tab is-active" id="reportTabTask" onclick="switchReportTab('task')">任务报</button>
+                  <button type="button" class="task-report-tab" id="reportTabDaily" onclick="switchReportTab('daily')">每日报</button>
+                </div>
+                <div id="reportBodyTask">
+                  <div class="daily-report-actions">
+                    <button type="button" class="task-report-read-all" onclick="speakReport('task')">🔊 让数字人阅读任务报</button>
+                  </div>
+                  <div class="task-report-list" id="taskReportList"></div>
+                </div>
+                <div id="reportBodyDaily" hidden>
+                  <div class="daily-report-actions">
+                    <button type="button" class="task-report-read-all" onclick="speakReport('daily')">🔊 让数字人阅读每日报</button>
+                    <button type="button" class="task-report-read-all" onclick="clearDailyReports()">清除每日报</button>
+                    <button type="button" class="task-report-read-all" onclick="downloadDailyReports()">下载到本地</button>
+                  </div>
+                  <div class="daily-report-list" id="dailyReportList"><p class="task-report-empty">加载中...</p></div>
+                </div>
               </div>
               <div class="avatar-3d-wrapper" id="avatarStage">
                 <div class="avatar-grid"></div>

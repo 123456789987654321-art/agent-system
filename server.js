@@ -44,7 +44,8 @@ let homeState = {
   devices: Object.fromEntries(DEVICE_DEFINITIONS.map(device => [device.key, '关闭'])),
   activeTask: null,
   pendingTasks: [],
-  reports: []
+  reports: [],
+  location: null
 };
 
 // 任务心跳检测
@@ -95,12 +96,138 @@ function addReport(task, text) {
 function finishTask(task) {
   if (!task) return;
   const text = task.reminder ? '现在要去' + task.name + '了' : task.name + '任务已完成';
+  recordTaskEnd(task);
   homeState.activeTask = null;
   broadcastLog('[任务完成]：' + task.name + ' 结束');
   const delivered = broadcastTaskDone(task, text);
   if (!delivered) addReport(task, text);
   broadcastState();
 }
+
+// ==== 每日报：记录任务时间段与家电开启次数，每天 0 点汇总前一天 ====
+const DAILY_REPORT_KEEP_DAYS = 7;
+const WEATHER_CODE_TEXT = {
+  0: '晴朗', 1: '多云', 2: '多云', 3: '阴天', 45: '有雾', 48: '有雾',
+  51: '毛毛雨', 53: '毛毛雨', 55: '毛毛雨', 56: '毛毛雨', 57: '毛毛雨',
+  61: '下雨', 63: '下雨', 65: '下雨', 66: '冻雨', 67: '冻雨',
+  71: '下雪', 73: '下雪', 75: '下雪', 77: '下雪',
+  80: '阵雨', 81: '阵雨', 82: '阵雨', 85: '阵雪', 86: '阵雪',
+  95: '雷雨', 96: '雷雨', 99: '雷雨'
+};
+let dailyBuckets = {};
+let dailyReports = [];
+let lastDailyCheck = '';
+
+function dateKeyOf(date) {
+  const target = date || new Date();
+  return target.getFullYear() + '-' + String(target.getMonth() + 1).padStart(2, '0') + '-' + String(target.getDate()).padStart(2, '0');
+}
+
+function currentBucket() {
+  const key = dateKeyOf();
+  if (!dailyBuckets[key]) dailyBuckets[key] = { tasks: [], devices: {} };
+  return dailyBuckets[key];
+}
+
+// 统一的设备状态写入：开启时计入当天的开启次数
+function applyDeviceState(deviceKey, state) {
+  const previous = homeState.devices[deviceKey];
+  homeState.devices[deviceKey] = state;
+  if (state === '开启' && previous !== '开启') {
+    const bucket = currentBucket();
+    bucket.devices[deviceKey] = (bucket.devices[deviceKey] || 0) + 1;
+  }
+}
+
+function recordTaskStart(task) {
+  if (!task) return;
+  const bucket = currentBucket();
+  bucket.tasks.push({
+    id: task.id,
+    name: task.name,
+    reminder: task.reminder === true,
+    startTime: formatClock(new Date()),
+    endTime: '',
+    done: false
+  });
+}
+
+function recordTaskEnd(task) {
+  if (!task) return;
+  const bucket = currentBucket();
+  let entry = bucket.tasks.find(item => item.id === task.id);
+  if (!entry) {
+    entry = { id: task.id, name: task.name, reminder: task.reminder === true, startTime: task.startTime || '', endTime: '', done: false };
+    bucket.tasks.push(entry);
+  }
+  entry.endTime = formatClock(new Date());
+  entry.done = true;
+}
+
+function buildDailyReport(dateKey, bucket) {
+  const parts = dateKey.split('-');
+  const deviceCounts = DEVICE_DEFINITIONS
+    .filter(device => bucket.devices[device.key])
+    .map(device => ({ key: device.key, name: device.name, count: bucket.devices[device.key] }))
+    .sort((a, b) => b.count - a.count);
+  return {
+    date: dateKey,
+    label: parts[0] + '年' + Number(parts[1]) + '月' + Number(parts[2]) + '日',
+    tasks: bucket.tasks,
+    devices: deviceCounts,
+    weather: bucket.weather || null
+  };
+}
+
+async function fetchDailyWeather(dateKey) {
+  const location = homeState.location;
+  if (!location) return null;
+  try {
+    const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + location.lat + '&longitude=' + location.lon
+      + '&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Asia%2FShanghai&past_days=7&forecast_days=1';
+    const response = await axios.get(url, { timeout: 8000 });
+    const daily = response.data && response.data.daily;
+    if (!daily || !Array.isArray(daily.time)) return null;
+    const index = daily.time.indexOf(dateKey);
+    if (index < 0) return null;
+    const code = Number(daily.weathercode[index]);
+    return {
+      code: code,
+      text: WEATHER_CODE_TEXT[code] || '未知',
+      max: daily.temperature_2m_max[index],
+      min: daily.temperature_2m_min[index]
+    };
+  } catch (error) {
+    broadcastLog('[每日报]：天气获取失败 ' + error.message);
+    return null;
+  }
+}
+
+async function finalizeDay(dateKey) {
+  if (dailyReports.some(report => report.date === dateKey)) return;
+  const bucket = dailyBuckets[dateKey];
+  if (!bucket || bucket.finalizing) return;
+  bucket.finalizing = true;
+  bucket.weather = await fetchDailyWeather(dateKey);
+  const report = buildDailyReport(dateKey, bucket);
+  dailyReports.unshift(report);
+  dailyReports = dailyReports.slice(0, DAILY_REPORT_KEEP_DAYS);
+  delete dailyBuckets[dateKey];
+  broadcastLog('[每日报]：' + report.label + ' 已生成，任务 ' + report.tasks.length + ' 条，家电 ' + report.devices.length + ' 种');
+  broadcastState();
+}
+
+async function ensureDailyReports() {
+  const today = dateKeyOf();
+  if (lastDailyCheck === today) return;
+  const pastKeys = Object.keys(dailyBuckets).filter(key => key < today);
+  for (const key of pastKeys) {
+    await finalizeDay(key);
+  }
+  lastDailyCheck = today;
+}
+
+setInterval(() => { ensureDailyReports(); }, 60000);
 
 function normalizeCommandText(text) {
   return String(text || '')
@@ -189,7 +316,7 @@ function enqueueDeviceCommands(commands) {
       const command = commands[index];
       const actionText = command.state === "开启" ? "打开" : "关闭";
 
-      homeState.devices[command.device.key] = command.state;
+      applyDeviceState(command.device.key, command.state);
       broadcastLog("[顺序执行 " + (index + 1) + "/" + commands.length + "]：" + actionText + command.device.name);
       broadcastState();
 
@@ -299,6 +426,7 @@ function makeTask(action) {
 
 function activateTask(task) {
   const startedAt = new Date();
+  recordTaskStart(task);
   homeState.activeTask = {
     ...task,
     startedAt: startedAt.getTime(),
@@ -409,7 +537,7 @@ async function processAgentThought(userInput, llmConfig) {
     if(result.actions) {
         const { validActions, rejected } = getValidatedControlActions(userInput, result.actions);
         validActions.forEach(({ device, state }) => {
-          homeState.devices[device.key] = state;
+          applyDeviceState(device.key, state);
         });
 
         result.actions.forEach(action => {
@@ -462,7 +590,7 @@ app.post('/api/task', (req, res) => {
 app.post('/api/toggle_device', (req, res) => {
   const { device, state } = req.body;
   if (homeState.devices[device] !== undefined) {
-    homeState.devices[device] = state;
+    applyDeviceState(device, state);
     broadcastLog(`[手动控制]：${device} 被手动切换为 ${state}`);
     broadcastState();
     res.json({ success: true });
@@ -521,6 +649,7 @@ app.post('/api/task_control', (req, res) => {
     message = '已继续' + task.name + '的倒计时';
   } else if (action === 'cancel') {
     message = '已取消当前任务：' + task.name;
+    recordTaskEnd(task);
     homeState.activeTask = null;
   } else if (action === 'extend') {
     if (!amountSeconds) return res.status(400).json({ error: '请说明要延长多长时间' });
@@ -551,6 +680,30 @@ app.post('/api/report_read', (req, res) => {
   });
   broadcastState();
   res.json({ success: true, reports: homeState.reports });
+});
+// 浏览器把定位同步给服务端，用于生成每日报里的天气
+app.post('/api/location', (req, res) => {
+  const { lat, lon } = req.body || {};
+  const latitude = Number(lat);
+  const longitude = Number(lon);
+  if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+    homeState.location = { lat: latitude, lon: longitude };
+  }
+  res.json({ success: true });
+});
+
+// 每日报：读取与清除（下载在前端直接导出文件）
+app.get('/api/daily_reports', async (req, res) => {
+  await ensureDailyReports();
+  res.json({ success: true, reports: dailyReports });
+});
+
+app.post('/api/daily_report_clear', (req, res) => {
+  const { date, all } = req.body || {};
+  if (all) dailyReports = [];
+  else dailyReports = dailyReports.filter(report => report.date !== date);
+  broadcastState();
+  res.json({ success: true, reports: dailyReports });
 });
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
