@@ -167,8 +167,14 @@ function switchPage(pageId, element) {
   document.querySelectorAll('.page-view').forEach(page => page.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
   document.getElementById(`page-${pageId}`).classList.add('active');
-  element.classList.add('active');
+  if (element) element.classList.add('active');
   if (pageId === 'weather') fetchWeather();
+  if (pageId === 'reports') loadDailyReports();
+}
+
+// 数字人卡片上的报告键：直接跳到报告页面
+function openReportsPage() {
+  switchPage('reports', document.getElementById('navReports'));
 }
 
 function toggleTheme() { document.body.classList.toggle('dark-mode'); }
@@ -564,30 +570,16 @@ function speakDailyReport() {
   const tasks = report.tasks || [];
   const parts = ['现在播报' + (report.label || report.date) + '的每日报。'];
   parts.push(dailyWeatherText(report) + '。');
-
   if (tasks.length) {
-    const names = tasks.slice(0, 4).map(task => task.name || '').filter(Boolean).join('；');
+    const names = tasks.slice(0, 4).map(task => task.name || '').filter(Boolean).join('、');
     parts.push('这天做了 ' + tasks.length + ' 件事：' + names + (tasks.length > 4 ? ' 等' : '') + '。');
   } else {
     parts.push('这天没有任务记录。');
   }
-
-  const adjusted = tasks.filter(task => (task.advancedSeconds > 0) || (task.delayedSeconds > 0));
-  if (adjusted.length) {
-    const items = adjusted.slice(0, 4).map(task => {
-      const bits = [];
-      if (task.advancedSeconds > 0) bits.push('提前 ' + shortDuration(task.advancedSeconds));
-      if (task.delayedSeconds > 0) bits.push('延后 ' + shortDuration(task.delayedSeconds));
-      return (task.name || '') + bits.join('、');
-    }).join('；');
-    parts.push('任务时间调整一共 ' + adjusted.length + ' 项：' + items + (adjusted.length > 4 ? ' 等' : '') + '。');
-  }
-
   const devices = report.devices || [];
   if (devices.length) {
     const total = devices.reduce((sum, device) => sum + device.count, 0);
-    const deviceText = devices.slice(0, 4).map(device => device.name + ' ' + device.count + ' 次').join('；');
-    parts.push('家电一共开了 ' + total + ' 次：' + deviceText + (devices.length > 4 ? ' 等' : '') + '。');
+    parts.push('家电一共开了 ' + total + ' 次。');
   }
   agentSpeak(parts.join(''));
 }
