@@ -424,12 +424,7 @@ function dailyWeatherText(report) {
   return report.weather.text + '，气温 ' + min + ' 到 ' + max + ' 摄氏度';
 }
 
-let expandedDailyDate = '';
 
-function toggleDailyReport(date) {
-  expandedDailyDate = expandedDailyDate === date ? '' : date;
-  renderDailyReports(dailyReportCache);
-}
 
 function renderDailyReports(reports) {
   const listEl = document.getElementById('dailyReportList');
@@ -438,39 +433,25 @@ function renderDailyReports(reports) {
     listEl.innerHTML = '<p class=\'task-report-empty\'>暂无每日报，每天 0 点自动汇总前一天</p>';
     return;
   }
-  if (!expandedDailyDate) expandedDailyDate = reports[0].date;
 
   listEl.innerHTML = reports.map(report => {
-    const expanded = report.date === expandedDailyDate;
     const info = getWeatherInfo(report.weather ? report.weather.code : -1);
     const temp = report.weather ? Math.round(report.weather.min) + '~' + Math.round(report.weather.max) + '℃' : '--';
     const tasks = report.tasks || [];
     const devices = report.devices || [];
     const deviceTotal = devices.reduce((sum, device) => sum + device.count, 0);
-    const summary = '<span class=\'daily-weather\'>' + info.icon + ' ' + info.text + ' ' + temp + '</span>'
-      + '<span class=\'report-chip\'>任务 ' + tasks.length + '</span>'
-      + '<span class=\'report-chip\'>家电 ' + deviceTotal + ' 次</span>';
-
-    let detail = '';
-    if (expanded) {
-      const taskText = tasks.length
-        ? tasks.map(task => '<span class=\'daily-task\'>' + (task.startTime || '--:--') + ' ' + escapeHtml(task.name) + '</span>').join('')
-        : '<span class=\'daily-none\'>无</span>';
-      const deviceText = devices.length
-        ? devices.map(device => '<span class=\'report-chip\'>' + escapeHtml(device.name) + ' ×' + device.count + '</span>').join('')
-        : '<span class=\'daily-none\'>无</span>';
-      detail = '<div class=\'daily-report-detail\'>'
-        + '<div class=\'daily-line\'><span>做的事</span><div>' + taskText + '</div></div>'
-        + '<div class=\'daily-line\'><span>家电</span><div>' + deviceText + '</div></div>'
-        + '</div>';
-    }
-
-    return '<div class=\'daily-report-item' + (expanded ? ' is-open' : '') + '\' onclick="toggleDailyReport(\'' + report.date + '\')">'
+    const shown = tasks.slice(0, 4);
+    const more = tasks.length > shown.length ? ' 等 ' + tasks.length + ' 项' : '';
+    const taskText = shown.length
+      ? shown.map(task => (task.startTime || '') + ' ' + escapeHtml(task.name)).join(' · ') + more
+      : '这天没有任务记录';
+    return '<div class=\'daily-report-item\'>'
       + '<div class=\'daily-report-summary\'>'
       + '<strong>' + escapeHtml(shortDayLabel(report)) + '</strong>'
-      + summary
+      + '<span class=\'daily-weather\'>' + info.icon + ' ' + info.text + ' ' + temp + '</span>'
+      + '<span class=\'report-chip\'>家电 ' + deviceTotal + ' 次</span>'
       + '</div>'
-      + detail
+      + '<div class=\'daily-report-taskline\'>' + taskText + '</div>'
       + '</div>';
   }).join('');
 }
@@ -554,18 +535,17 @@ function speakDailyReport() {
   const report = dailyReportCache[0];
   const parts = ['现在播报' + (report.label || report.date) + '的每日报。'];
   parts.push(dailyWeatherText(report) + '。');
-  if (report.tasks && report.tasks.length) {
-    const tasks = report.tasks.map(task => spokenClock(task.startTime) + (task.name ? '，' + task.name : '')).join('；');
-    parts.push('这天做了 ' + report.tasks.length + ' 件事：' + tasks + '。');
+  const tasks = report.tasks || [];
+  if (tasks.length) {
+    const names = tasks.slice(0, 4).map(task => task.name || '').filter(Boolean).join('、');
+    parts.push('这天做了 ' + tasks.length + ' 件事：' + names + (tasks.length > 4 ? ' 等' : '') + '。');
   } else {
     parts.push('这天没有任务记录。');
   }
-  if (report.devices && report.devices.length) {
-    const total = report.devices.reduce((sum, device) => sum + device.count, 0);
-    const devices = report.devices.map(device => device.name + ' ' + device.count + ' 次').join('；');
-    parts.push('家电一共开了 ' + total + ' 次：' + devices + '。');
-  } else {
-    parts.push('这天没有家电开启记录。');
+  const devices = report.devices || [];
+  if (devices.length) {
+    const total = devices.reduce((sum, device) => sum + device.count, 0);
+    parts.push('家电一共开了 ' + total + ' 次。');
   }
   agentSpeak(parts.join(''));
 }
