@@ -36,6 +36,7 @@ window.onload = () => {
   document.querySelector(`input[name="provider"][value="${savedProvider}"]`).checked = true;
   document.querySelector(`input[name="level"][value="${savedLevel}"]`).checked = true;
   updatePlaceholder();
+  updateAgentConnectionState();
 
   initLocationAndWeather();
 };
@@ -82,6 +83,49 @@ async function reverseGeocode(lat, lon) {
   }
 }
 
+// ==== AI 管家在线 / 离线状态（是否已配置可用 API Key）====
+const AGENT_ONLINE_CAPTION = { title: '管家在线', text: '先生，随时听候您的差遣。' };
+const AGENT_OFFLINE_CAPTION = { title: '管家离线', text: '还没有接入大模型密钥，请到「设置」页填入 API Key 并保存。' };
+let agentOfflineState = null;
+
+// 取值优先级：输入框 > 本标签页临时密钥 > 永久保存的密钥
+function getEffectiveApiKey() {
+  const field = document.getElementById('apiKeyInput');
+  const typed = field ? field.value.trim() : '';
+  if (typed) return typed;
+  return sessionStorage.getItem('agentApiKey') || localStorage.getItem('agentApiKey') || '';
+}
+
+function isAgentOffline() { return !getEffectiveApiKey(); }
+function getAgentIdleTitle() { return isAgentOffline() ? AGENT_OFFLINE_CAPTION.title : AGENT_ONLINE_CAPTION.title; }
+function getAgentIdleText() { return isAgentOffline() ? AGENT_OFFLINE_CAPTION.text : AGENT_ONLINE_CAPTION.text; }
+
+// 没有密钥：状态牌红框灰字显示离线，数字人闭眼、双手垂放腿侧，像未开机一样
+function updateAgentConnectionState() {
+  const offline = isAgentOffline();
+  const card = document.getElementById('digitalHumanCard');
+  const badge = document.getElementById('avatarOnlineBadge');
+  const badgeText = badge ? badge.querySelector('.avatar-online-text') : null;
+
+  if (card) card.classList.toggle('agent-offline', offline);
+  if (badge) badge.setAttribute('aria-label', offline ? '离线：未配置 API Key' : '在线');
+  if (badgeText) badgeText.innerText = offline ? '离线' : '在线';
+
+  if (agentOfflineState === offline) return;
+  agentOfflineState = offline;
+
+  const titleEl = document.getElementById('avatarCaptionTitle');
+  const statusEl = document.querySelector('.avatar-status');
+  if (titleEl) titleEl.innerText = getAgentIdleTitle();
+  if (statusEl) statusEl.innerText = getAgentIdleText();
+}
+
+function initApiKeyWatcher() {
+  const field = document.getElementById('apiKeyInput');
+  if (!field) return;
+  field.addEventListener('input', updateAgentConnectionState);
+}
+
 function updatePlaceholder() {
   const provider = document.querySelector('input[name="provider"]:checked').value;
   const input = document.getElementById('apiKeyInput');
@@ -91,7 +135,7 @@ function updatePlaceholder() {
 }
 
 function saveConfig(mode) {
-  const key = document.getElementById('apiKeyInput').value;
+  const key = document.getElementById('apiKeyInput').value.trim();
   const provider = document.querySelector('input[name="provider"]:checked').value;
   const level = document.querySelector('input[name="level"]:checked').value;
   
@@ -100,12 +144,16 @@ function saveConfig(mode) {
 
   if (mode === 'permanent') {
     if (key) localStorage.setItem('agentApiKey', key);
+    else localStorage.removeItem('agentApiKey');
     sessionStorage.removeItem('agentApiKey'); 
   } else if (mode === 'session') {
     if (key) sessionStorage.setItem('agentApiKey', key);
+    else sessionStorage.removeItem('agentApiKey');
     localStorage.removeItem('agentApiKey'); 
   }
   
+  updateAgentConnectionState();
+
   const status = document.getElementById('saveStatus');
   status.innerText = mode === 'permanent' ? '✓ 配置已永久保存' : '✓ 密钥仅本次有效';
   status.style.display = 'inline-block';
@@ -678,12 +726,12 @@ function startAvatarListening() {
     clearTimeout(avatarSilenceTimer);
     avatarSilenceTimer = null;
     if (stage) stage.classList.remove('listening');
-    if (titleEl) titleEl.innerText = '管家在线';
+    if (titleEl) titleEl.innerText = getAgentIdleTitle();
     avatarRecognition = null;
 
     if (heardText.trim()) sendVoiceCommand();
     else {
-      if (statusEl) statusEl.innerText = '先生，随时听候您的差遣。';
+      if (statusEl) statusEl.innerText = getAgentIdleText();
       hideGlobalVoiceStatus();
     }
   };
@@ -730,13 +778,13 @@ function agentSpeak(text) {
     speechInProgress = false;
     if (stage) stage.classList.remove('speaking');
     if (hologramBase) hologramBase.classList.remove('speaking');
-    if (titleEl) titleEl.innerText = '管家在线';
+    if (titleEl) titleEl.innerText = getAgentIdleTitle();
     setAvatarAnimation(['idle', 'stand', 'standing']);
     setTimeout(flushDeviceDemoQueue, 240);
     hideGlobalVoiceStatus();
     setTimeout(() => {
       if (!window.speechSynthesis.speaking && statusEl) {
-        statusEl.innerText = "先生，随时听候您的差遣。";
+        statusEl.innerText = getAgentIdleText();
       }
     }, 3000);
   };
@@ -745,7 +793,7 @@ function agentSpeak(text) {
     speechInProgress = false;
     if (stage) stage.classList.remove('speaking');
     if (hologramBase) hologramBase.classList.remove('speaking');
-    if (titleEl) titleEl.innerText = '管家在线';
+    if (titleEl) titleEl.innerText = getAgentIdleTitle();
     setAvatarAnimation(['idle', 'stand', 'standing']);
     setTimeout(flushDeviceDemoQueue, 240);
     hideGlobalVoiceStatus();
@@ -755,6 +803,8 @@ function agentSpeak(text) {
 }
 
 initDigitalHuman();
+initApiKeyWatcher();
+updateAgentConnectionState();
 
 // 渲染总览页面上方的小时天气，并同步渲染折线图
 async function fetchHourlyWeather() {
