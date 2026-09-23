@@ -97,6 +97,11 @@
             </div>
 
             <div class="avatar-container">
+              <div class="task-alert-bar" id="taskAlertBar" hidden>
+                <span class="task-alert-text" id="taskAlertText"></span>
+                <button type="button" class="task-report-read-all" onclick="speakPendingAlert()">🔊 播报</button>
+                <button type="button" class="task-report-read-all" onclick="dismissPendingAlert()">忽略</button>
+              </div>
               <div class="task-report-panel" id="taskReportPanel" hidden>
                 <div class="task-report-head">
                   <strong>报告</strong>

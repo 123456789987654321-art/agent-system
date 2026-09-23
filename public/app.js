@@ -301,11 +301,39 @@ function parseLocalTaskCommand(text) {
 }
 
 // 任务到点时由服务端推送，这里负责播报
+let pendingTaskAlerts = [];
+
+// 到点不自动播报，先在数字人上方弹一条提醒，等用户点播报或说播报提醒
 function handleTaskDone(task) {
   if (!task) return;
-  const text = task.text || (task.reminder ? '现在要去' + task.name + '了' : task.name + '任务已完成');
-  showGlobalVoiceStatus('任务提醒', text, 'speaking');
-  agentSpeak(text);
+  pendingTaskAlerts.push(task);
+  renderTaskAlert();
+}
+
+function renderTaskAlert() {
+  const bar = document.getElementById('taskAlertBar');
+  const textEl = document.getElementById('taskAlertText');
+  if (!bar) return;
+  const alert = pendingTaskAlerts[0];
+  if (!alert) {
+    bar.hidden = true;
+    return;
+  }
+  bar.hidden = false;
+  const extra = pendingTaskAlerts.length > 1 ? '（还有 ' + (pendingTaskAlerts.length - 1) + ' 条）' : '';
+  if (textEl) textEl.innerText = '到点提醒：' + alert.name + extra;
+}
+
+function speakPendingAlert() {
+  const alert = pendingTaskAlerts.shift();
+  if (!alert) return;
+  agentSpeak(alert.text || ('现在要去' + alert.name + '了'));
+  renderTaskAlert();
+}
+
+function dismissPendingAlert() {
+  pendingTaskAlerts.shift();
+  renderTaskAlert();
 }
 
 // ==== 倒计时框控制：暂停 / 继续 / 清除 / 延长 / 提前 ====
@@ -551,6 +579,10 @@ function speakDailyReport() {
 }
 
 async function speakReport(kind) {
+  if (kind === 'alert') {
+    speakPendingAlert();
+    return;
+  }
   if (kind === 'daily') {
     if (!dailyReportCache.length) await loadDailyReports();
     speakDailyReport();
@@ -562,6 +594,7 @@ async function speakReport(kind) {
 function parseReportVoiceCommand(text) {
   const compact = String(text || '').replace(/\s+/g, '');
   if (!/(念|读|播报|朗读|阅读|说一下|讲讲|听一下)/.test(compact)) return null;
+  if (/提醒/.test(compact)) return { kind: 'alert' };
   if (/每日报|日报/.test(compact)) return { kind: 'daily' };
   if (/任务报|任务报告|报告/.test(compact)) return { kind: 'task' };
   return null;
