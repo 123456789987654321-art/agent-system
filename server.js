@@ -146,6 +146,8 @@ function recordTaskStart(task) {
     id: task.id,
     name: task.name,
     reminder: task.reminder === true,
+    advancedSeconds: task.advancedSeconds || 0,
+    delayedSeconds: task.delayedSeconds || 0,
     startTime: formatClock(new Date()),
     endTime: '',
     done: false
@@ -163,6 +165,25 @@ function recordTaskEnd(task) {
   entry.endTime = formatClock(new Date());
   entry.done = true;
 }
+// 记录任务被提前或延后了多少（用于每日报）
+function currentTaskEntry(taskId) {
+  const bucket = dailyBuckets[dateKeyOf()];
+  if (!bucket) return null;
+  return bucket.tasks.find(item => item.id === taskId) || null;
+}
+
+function addTaskAdjustment(task, type, seconds) {
+  const value = Math.max(0, Math.round(Number(seconds) || 0));
+  if (!task || !value) return;
+  if (type === 'advance') task.advancedSeconds = (task.advancedSeconds || 0) + value;
+  else task.delayedSeconds = (task.delayedSeconds || 0) + value;
+  const entry = currentTaskEntry(task.id);
+  if (entry) {
+    entry.advancedSeconds = task.advancedSeconds || 0;
+    entry.delayedSeconds = task.delayedSeconds || 0;
+  }
+}
+
 
 function buildDailyReport(dateKey, bucket) {
   const parts = dateKey.split('-');
@@ -624,13 +645,16 @@ app.post('/api/task_control', (req, res) => {
     if (!homeState.pendingTasks.length) return res.status(400).json({ error: '没有等待中的任务' });
     homeState.pendingTasks.sort((a, b) => a.scheduledAt - b.scheduledAt);
     const nextTask = homeState.pendingTasks.shift();
+    const originalAt = nextTask.scheduledAt;
     if (task) {
       nextTask.executeMode = 'scheduled';
       nextTask.scheduledAt = Date.now() + task.remaining * 1000 + 1000;
       nextTask.scheduledTime = formatClock(new Date(nextTask.scheduledAt));
+      addTaskAdjustment(nextTask, 'advance', Math.max(0, Math.round((originalAt - nextTask.scheduledAt) / 1000)));
       homeState.pendingTasks.unshift(nextTask);
       message = '已把下一个任务提前到当前任务结束后立即开始：' + nextTask.name;
     } else {
+      addTaskAdjustment(nextTask, 'advance', Math.max(0, Math.round((originalAt - Date.now()) / 1000)));
       activateTask(nextTask);
       message = '已提前开始下一个任务：' + nextTask.name;
     }
@@ -656,11 +680,13 @@ app.post('/api/task_control', (req, res) => {
     task.totalSeconds += amountSeconds;
     task.remaining += amountSeconds;
     task.endTime = formatClock(new Date(Date.now() + task.remaining * 1000));
+    addTaskAdjustment(task, 'delay', amountSeconds);
     message = '已把' + task.name + '延长' + formatDuration(amountSeconds);
   } else if (action === 'advance') {
     if (!amountSeconds) return res.status(400).json({ error: '请说明要提前多长时间' });
     task.totalSeconds = Math.max(1, task.totalSeconds - amountSeconds);
     task.remaining = task.remaining - amountSeconds;
+    addTaskAdjustment(task, 'advance', amountSeconds);
     message = '已把' + task.name + '提前' + formatDuration(amountSeconds);
     if (task.remaining <= 0) finishTask(task);
   } else {

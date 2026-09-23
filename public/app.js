@@ -471,7 +471,7 @@ function renderDailyReports(reports) {
     const shown = tasks.slice(0, 4);
     const more = tasks.length > shown.length ? ' 等 ' + tasks.length + ' 项' : '';
     const taskText = shown.length
-      ? shown.map(task => (task.startTime || '') + ' ' + escapeHtml(task.name)).join(' · ') + more
+      ? shown.map(task => (task.startTime || '') + ' ' + escapeHtml(task.name) + taskAdjustText(task)).join(' · ') + more
       : '这天没有任务记录';
     return '<div class=\'daily-report-item\'>'
       + '<div class=\'daily-report-summary\'>'
@@ -511,7 +511,7 @@ function downloadDailyReports() {
     lines.push('做的事：');
     if (report.tasks && report.tasks.length) {
       report.tasks.forEach(task => {
-        lines.push('  ' + (task.startTime || '--:--') + (task.endTime ? ' - ' + task.endTime : '') + ' ' + task.name);
+        lines.push('  ' + (task.startTime || '--:--') + (task.endTime ? ' - ' + task.endTime : '') + ' ' + task.name + ' ' + taskAdjustText(task));
       });
     } else {
       lines.push('  无');
@@ -565,7 +565,10 @@ function speakDailyReport() {
   parts.push(dailyWeatherText(report) + '。');
   const tasks = report.tasks || [];
   if (tasks.length) {
-    const names = tasks.slice(0, 4).map(task => task.name || '').filter(Boolean).join('、');
+    const names = tasks.slice(0, 4).map(task => {
+      const adjust = taskAdjustText(task).replace(/[（）]/g, '');
+      return (task.name || '') + (adjust ? '，' + adjust : '');
+    }).filter(Boolean).join('；');
     parts.push('这天做了 ' + tasks.length + ' 件事：' + names + (tasks.length > 4 ? ' 等' : '') + '。');
   } else {
     parts.push('这天没有任务记录。');
@@ -604,6 +607,21 @@ function spokenClock(value) {
   const parts = String(value || '').split(':');
   if (parts.length < 2) return String(value || '');
   return Number(parts[0]) + '点' + parts[1] + '分';
+}
+
+function shortDuration(seconds) {
+  const value = Math.max(0, Math.round(Number(seconds) || 0));
+  if (value >= 3600 && value % 3600 === 0) return (value / 3600) + '小时';
+  if (value >= 60 && value % 60 === 0) return (value / 60) + '分钟';
+  if (value >= 60) return Math.floor(value / 60) + '分' + (value % 60) + '秒';
+  return value + '秒';
+}
+
+function taskAdjustText(task) {
+  const parts = [];
+  if (task && task.advancedSeconds > 0) parts.push('提前 ' + shortDuration(task.advancedSeconds));
+  if (task && task.delayedSeconds > 0) parts.push('延后 ' + shortDuration(task.delayedSeconds));
+  return parts.length ? '（' + parts.join('、') + '）' : '';
 }
 
 function shortDayLabel(report) {
