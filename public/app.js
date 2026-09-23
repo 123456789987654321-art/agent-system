@@ -488,6 +488,7 @@ function renderDailyReports(reports) {
       + '<div class=\'daily-report-taskline\'>' + taskText + '</div>'
       + '</div>';
   }).join('');
+  refreshReportModal('daily');
 }
 
 async function clearDailyReports() {
@@ -635,6 +636,43 @@ function shortDayLabel(report) {
   return Number(parts[1]) + '月' + Number(parts[2]) + '日 ' + week;
 }
 
+// ==== 报告放大查看 ====
+function reportModalSourceHtml(kind) {
+  const source = document.getElementById(kind === 'daily' ? 'dailyReportList' : 'taskReportList');
+  if (!source) return '';
+  const empty = kind === 'daily' ? '暂无每日报' : '今天还没有任务记录';
+  const html = String(source.innerHTML || '').trim();
+  return html || '<p class=\'task-report-empty\'>' + empty + '</p>';
+}
+
+function openReportModal(kind) {
+  const modal = document.getElementById('reportModal');
+  const title = document.getElementById('reportModalTitle');
+  const body = document.getElementById('reportModalBody');
+  if (!modal || !body) return;
+  modal.dataset.kind = kind;
+  if (title) title.innerText = kind === 'daily' ? '每日报' : '任务报';
+  body.innerHTML = reportModalSourceHtml(kind);
+  modal.hidden = false;
+}
+
+function refreshReportModal(kind) {
+  const modal = document.getElementById('reportModal');
+  const body = document.getElementById('reportModalBody');
+  if (!modal || !body || modal.hidden) return;
+  if (modal.dataset.kind !== kind) return;
+  body.innerHTML = reportModalSourceHtml(kind);
+}
+
+function closeReportModal() {
+  const modal = document.getElementById('reportModal');
+  if (modal) modal.hidden = true;
+}
+
+document.addEventListener('keydown', function (event) {
+  if (event && event.key === 'Escape') closeReportModal();
+});
+
 function renderTaskReports(reports) {
   const countBadge = document.getElementById('taskReportCount');
   const listEl = document.getElementById('taskReportList');
@@ -673,6 +711,7 @@ function renderTaskReports(reports) {
   }
 
   announceMissedReports();
+  refreshReportModal('task');
 }
 
 function announceMissedReports() {

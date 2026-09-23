@@ -376,6 +376,7 @@
             <div class="report-column-actions">
               <button type="button" class="task-report-read-all" onclick="speakReport('task')">🔊 让数字人阅读任务报</button>
               <button type="button" class="task-report-read-all" onclick="markAllReportsRead()">✓ 全部已读</button>
+              <button type="button" class="task-report-read-all" onclick="openReportModal('task')">🔍 放大查看</button>
             </div>
             <div class="task-report-list" id="taskReportList"></div>
           </div>
@@ -385,6 +386,7 @@
               <button type="button" class="task-report-read-all" onclick="speakReport('daily')">🔊 让数字人阅读每日报</button>
               <button type="button" class="task-report-read-all" onclick="clearDailyReports()">清除每日报</button>
               <button type="button" class="task-report-read-all" onclick="downloadDailyReports()">下载到本地</button>
+              <button type="button" class="task-report-read-all" onclick="openReportModal('daily')">🔍 放大查看</button>
             </div>
             <div class="daily-report-list" id="dailyReportList"><p class="task-report-empty">加载中...</p></div>
           </div>
@@ -402,6 +404,16 @@
     <button type="button" class="global-voice-close" onclick="hideGlobalVoiceStatus(true)" aria-label="关闭语音状态">×</button>
   </div>
 
+  <div class="report-modal" id="reportModal" hidden>
+    <div class="report-modal-mask" onclick="closeReportModal()"></div>
+    <div class="report-modal-panel">
+      <div class="report-modal-head">
+        <strong id="reportModalTitle">报告</strong>
+        <button type="button" class="report-modal-close" onclick="closeReportModal()" aria-label="关闭">×</button>
+      </div>
+      <div class="report-modal-body" id="reportModalBody"></div>
+    </div>
+  </div>
   <script src="app.js"></script>
 </body>
 </html>
