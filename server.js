@@ -61,6 +61,27 @@ setInterval(() => {
   broadcastState();
 }, 1000);
 
+// 页面全部关闭后不再保留任务，重新打开就是干净状态
+function clearStaleTasks() {
+  const cleared = (homeState.activeTask ? 1 : 0) + homeState.pendingTasks.length;
+  if (!cleared) return 0;
+  homeState.activeTask = null;
+  homeState.pendingTasks = [];
+  return cleared;
+}
+
+wss.on('connection', (socket) => {
+  if (wss.clients.size === 1) {
+    const cleared = clearStaleTasks();
+    if (cleared) broadcastLog('[任务清理]：上一个会话遗留的 ' + cleared + ' 个任务已清空');
+  }
+  socket.send(JSON.stringify({ type: 'STATE_UPDATE', data: homeState }));
+
+  socket.on('close', () => {
+    if (wss.clients.size === 0) clearStaleTasks();
+  });
+});
+
 function broadcastState() {
   wss.clients.forEach(c => c.readyState === WebSocket.OPEN && c.send(JSON.stringify({ type: 'STATE_UPDATE', data: homeState })));
 }
