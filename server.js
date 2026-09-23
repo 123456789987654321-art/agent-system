@@ -111,7 +111,7 @@ const WEATHER_CODE_TEXT = {
   51: '毛毛雨', 53: '毛毛雨', 55: '毛毛雨', 56: '毛毛雨', 57: '毛毛雨',
   61: '下雨', 63: '下雨', 65: '下雨', 66: '冻雨', 67: '冻雨',
   71: '下雪', 73: '下雪', 75: '下雪', 77: '下雪',
-  80: '阵雨', 81: '阵雨', 82: '阵雨', 85: '阵雪', 86: '阵雪',
+  80: '下雨', 81: '下雨', 82: '下雨', 85: '下雪', 86: '下雪',
   95: '雷雨', 96: '雷雨', 99: '雷雨'
 };
 let dailyBuckets = {};
@@ -704,6 +704,63 @@ app.post('/api/daily_report_clear', (req, res) => {
   else dailyReports = dailyReports.filter(report => report.date !== date);
   broadcastState();
   res.json({ success: true, reports: dailyReports });
+});
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// 演示用：随机造一份昨天的每日报，方便展示和答辩
+function makeDemoDailyReport() {
+  const yesterday = new Date(Date.now() - 24 * 3600 * 1000);
+  const dateKey = dateKeyOf(yesterday);
+  const parts = dateKey.split('-');
+  const taskPool = ['倒垃圾', '晒衣服', '收衣服', '浇花', '拖地', '扫地', '洗碗', '洗衣服', '擦桌子', '整理房间'];
+  const deviceKeys = ['light_living', 'light_bedroom', 'light_kitchen', 'light_toilet', 'ac', 'tv', 'washer', 'water_heater', 'fan', 'kettle'];
+  const devicePool = DEVICE_DEFINITIONS.filter(device => deviceKeys.indexOf(device.key) >= 0);
+
+  const pickedTasks = taskPool.slice().sort(() => Math.random() - 0.5).slice(0, randomInt(2, 4));
+  const tasks = pickedTasks.map((name, index) => {
+    const startMinutes = randomInt(7 * 60, 21 * 60);
+    const duration = randomInt(10, 40);
+    const start = new Date(yesterday);
+    start.setHours(Math.floor(startMinutes / 60), startMinutes % 60, 0, 0);
+    const end = new Date(start.getTime() + duration * 60 * 1000);
+    return {
+      id: 'demo-' + dateKey + '-' + index,
+      name: name,
+      reminder: false,
+      startTime: formatClock(start),
+      endTime: formatClock(end),
+      done: true
+    };
+  }).sort((a, b) => (a.startTime < b.startTime ? -1 : 1));
+
+  const devices = devicePool.slice().sort(() => Math.random() - 0.5).slice(0, randomInt(1, 3))
+    .map(device => ({ key: device.key, name: device.name, count: randomInt(1, 6) }))
+    .sort((a, b) => b.count - a.count);
+
+  const codes = [0, 1, 2, 3, 61, 80];
+  const code = codes[randomInt(0, codes.length - 1)];
+  const min = randomInt(16, 24);
+
+  return {
+    date: dateKey,
+    label: parts[0] + '年' + Number(parts[1]) + '月' + Number(parts[2]) + '日',
+    tasks: tasks,
+    devices: devices,
+    weather: { code: code, text: WEATHER_CODE_TEXT[code] || '未知', max: min + randomInt(4, 9), min: min },
+    demo: true
+  };
+}
+
+app.post('/api/daily_report_demo', (req, res) => {
+  const report = makeDemoDailyReport();
+  dailyReports = dailyReports.filter(item => item.date !== report.date);
+  dailyReports.unshift(report);
+  dailyReports = dailyReports.slice(0, DAILY_REPORT_KEEP_DAYS);
+  broadcastLog('[每日报]：已随机生成 ' + report.label + ' 的演示日报');
+  broadcastState();
+  res.json({ success: true, report: report, reports: dailyReports });
 });
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
