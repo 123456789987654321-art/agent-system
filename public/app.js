@@ -210,50 +210,99 @@ async function getTodayWeatherSnapshot() {
   return fetchWeather();
 }
 
+const TASK_PRESETS = {
+  '倒垃圾': 10,
+  '晒衣服': 30,
+  '晾衣服': 30,
+  '收衣服': 10,
+  '洗衣服': 45,
+  '浇花': 10,
+  '拖地': 20,
+  '扫地': 20,
+  '洗碗': 15,
+  '擦桌子': 10,
+  '整理房间': 30
+};
+
+// 解析 10s / 10秒 / 5分钟 / 1小时 这类相对时长，返回秒数与用户原始写法
+function parseRelativeDelay(compact) {
+  const match = compact.match(/(\d{1,4})(秒钟|秒|seconds|second|secs|sec|s|minutes|minute|mins|min|分钟|分|hours|hour|hrs|hr|小时|h)(之后|以后|后)?/i);
+  if (!match) return null;
+  const amount = Number(match[1]);
+  if (!amount) return null;
+  const unit = String(match[2]).toLowerCase();
+  let seconds = amount * 60;
+  if (unit.indexOf('秒') === 0 || ['s', 'sec', 'secs', 'second', 'seconds'].indexOf(unit) >= 0) seconds = amount;
+  else if (unit.indexOf('分') === 0 || ['min', 'mins', 'minute', 'minutes'].indexOf(unit) >= 0) seconds = amount * 60;
+  else seconds = amount * 3600;
+  return { seconds: seconds, raw: match[1] + match[2], hasAfter: Boolean(match[3]) };
+}
+
+// 从 10s后提醒我洗衣服 这类句子里取出提醒内容
+function extractReminderName(compact) {
+  let name = compact.replace(/(\d{1,4})(秒钟|秒|seconds|second|secs|sec|s|minutes|minute|mins|min|分钟|分|hours|hour|hrs|hr|小时|h)(之后|以后|后)?/i, '');
+  name = name.replace(/(提醒我一下|提醒我|提醒你|提醒一下|提醒|记得|到时候|叫我|通知我|告诉我)/g, '');
+  name = name.replace(/(帮我|请|麻烦|给我|替我|把|将)/g, '');
+  name = name.replace(/[，。！？、,.!?;；:：]/g, '');
+  name = name.replace(/^(我|你|一下|去|要|该)/, '');
+  return name.trim();
+}
+
 function parseLocalTaskCommand(text) {
   const compact = String(text || '').replace(/\s+/g, '');
-  const taskMinutes = {
-    '倒垃圾': 10,
-    '晒衣服': 30,
-    '晾衣服': 30,
-    '收衣服': 10,
-    '浇花': 10,
-    '拖地': 20,
-    '扫地': 20,
-    '洗碗': 15,
-    '擦桌子': 10,
-    '整理房间': 30
-  };
-  const taskName = Object.keys(taskMinutes).find(name => compact.includes(name));
-  if (!taskName) return null;
+  const isRemind = /提醒|记得|叫我|通知我|告诉我/.test(compact);
+  const delay = parseRelativeDelay(compact);
+  const presetName = Object.keys(TASK_PRESETS).find(name => compact.includes(name));
+  const delayUsable = Boolean(delay) && Boolean(delay.hasAfter || isRemind);
+
+  // 例如 10s后提醒我倒垃圾：先倒计时，到点再语音提醒
+  if (delayUsable && (isRemind || presetName)) {
+    const reminderName = extractReminderName(compact) || presetName || '这件事';
+    return {
+      name: reminderName,
+      seconds: delay.seconds,
+      execute: 'now',
+      scheduledTime: '',
+      reminder: true,
+      speak: '好的，' + delay.raw + '后提醒你' + reminderName + '。'
+    };
+  }
+
+  if (!presetName) return null;
 
   let execute = 'now';
   let scheduledTime = '';
-  const afterMatch = compact.match(/(\d{1,3})分钟后/);
-  if (afterMatch) {
-    const target = new Date(Date.now() + Number(afterMatch[1]) * 60 * 1000);
-    scheduledTime = `${String(target.getHours()).padStart(2, '0')}:${String(target.getMinutes()).padStart(2, '0')}`;
+  const timeMatch = compact.match(/(今天|明天)?(上午|下午|晚上)?(\d{1,2})(?:点|:|：)(\d{1,2})?/);
+  if (timeMatch) {
+    let hour = Number(timeMatch[3]);
+    const minute = Number(timeMatch[4] || 0);
+    if ((timeMatch[2] === '下午' || timeMatch[2] === '晚上') && hour < 12) hour += 12;
+    scheduledTime = String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0');
     execute = 'scheduled';
-  } else {
-    const timeMatch = compact.match(/(今天|明天)?(上午|下午|晚上)?(\d{1,2})(?:点|:|：)(\d{1,2})?/);
-    if (timeMatch) {
-      let hour = Number(timeMatch[3]);
-      const minute = Number(timeMatch[4] || 0);
-      if ((timeMatch[2] === '下午' || timeMatch[2] === '晚上') && hour < 12) hour += 12;
-      scheduledTime = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-      execute = 'scheduled';
-    } else if (/稍后|待会|等会|晚点|一会儿/.test(compact)) {
-      scheduledTime = '稍后';
-      execute = 'scheduled';
-    }
+  } else if (/稍后|待会|等会|晚点|一会儿/.test(compact)) {
+    scheduledTime = '稍后';
+    execute = 'scheduled';
   }
 
+  const name = presetName === '晾衣服' ? '晒衣服' : presetName;
   return {
-    name: taskName === '晾衣服' ? '晒衣服' : taskName,
-    minutes: taskMinutes[taskName],
-    execute,
-    scheduledTime
+    name: name,
+    minutes: TASK_PRESETS[presetName],
+    execute: execute,
+    scheduledTime: scheduledTime,
+    reminder: false,
+    speak: execute === 'scheduled'
+      ? '好的，已安排在' + scheduledTime + '执行' + name + '。'
+      : '好的，现在开始' + name + '。'
   };
+}
+
+// 任务到点时由服务端推送，这里负责播报
+function handleTaskDone(task) {
+  if (!task) return;
+  const text = task.text || (task.reminder ? '现在要去' + task.name + '了' : task.name + '任务已完成');
+  showGlobalVoiceStatus('任务提醒', text, 'speaking');
+  agentSpeak(text);
 }
 
 async function sendVoiceCommand() {
@@ -285,16 +334,19 @@ async function sendVoiceCommand() {
       const res = await fetch('/api/task', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(localTask)
+        body: JSON.stringify({
+          name: localTask.name,
+          minutes: localTask.minutes,
+          seconds: localTask.seconds,
+          execute: localTask.execute,
+          scheduledTime: localTask.scheduledTime,
+          reminder: localTask.reminder
+        })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '任务创建失败');
 
-      const task = data.task || localTask;
-      const reply = task.executeMode === 'scheduled'
-        ? `好的，已安排在${task.scheduledTime || localTask.scheduledTime}执行${task.name}。`
-        : `好的，现在开始${task.name}。`;
-      agentSpeak(reply);
+      agentSpeak(localTask.speak);
     } catch (error) {
       showGlobalVoiceStatus('任务创建失败', error.message || '请稍后再试。', 'idle');
       hideGlobalVoiceStatus();
@@ -951,6 +1003,7 @@ ws.onmessage = (event) => {
   const msg = JSON.parse(event.data);
   if (msg.type === 'AGENT_LOG') console.log("AI状态更新: ", msg.log); 
   else if (msg.type === 'STATE_UPDATE') renderUI(msg.data);
+  else if (msg.type === 'TASK_DONE') handleTaskDone(msg.data);
 };
 
 function escapeHtml(value) {

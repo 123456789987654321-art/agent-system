@@ -52,7 +52,9 @@ setInterval(() => {
     homeState.activeTask.remaining--;
     if (homeState.activeTask.remaining <= 0) {
       broadcastLog(`[任务完成]：${homeState.activeTask.name} 结束`);
+      const finishedTask = homeState.activeTask;
       homeState.activeTask = null;
+      broadcastTaskDone(finishedTask);
     }
   }
   activateReadyTask();
@@ -64,6 +66,12 @@ function broadcastState() {
 }
 function broadcastLog(logText) {
   wss.clients.forEach(c => c.readyState === WebSocket.OPEN && c.send(JSON.stringify({ type: 'AGENT_LOG', log: logText })));
+}
+function broadcastTaskDone(task) {
+  if (!task || !task.reminder) return;
+  const text = '现在要去' + task.name + '了';
+  const payload = JSON.stringify({ type: 'TASK_DONE', data: { id: task.id, name: task.name, reminder: true, text: text } });
+  wss.clients.forEach(c => c.readyState === WebSocket.OPEN && c.send(payload));
 }
 
 function normalizeCommandText(text) {
@@ -237,6 +245,8 @@ function parseScheduledAt(scheduledTime) {
 
 function makeTask(action) {
   const minutes = Math.max(1, Number(action.minutes) || 10);
+  const secondsInput = Number(action.seconds);
+  const totalSeconds = Number.isFinite(secondsInput) && secondsInput > 0 ? Math.max(1, Math.round(secondsInput)) : minutes * 60;
   const scheduledTime = String(action.scheduledTime || '').trim();
   const executeMode = action.execute === 'scheduled' || scheduledTime ? 'scheduled' : 'now';
   const scheduledAt = executeMode === 'scheduled'
@@ -246,8 +256,11 @@ function makeTask(action) {
   return {
     id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
     name: String(action.name || '日常任务'),
-    totalSeconds: minutes * 60,
-    remaining: minutes * 60,
+    reminder: action.reminder === true,
+    minutes,
+    seconds: totalSeconds,
+    totalSeconds,
+    remaining: totalSeconds,
     executeMode,
     scheduledAt,
     scheduledTime: executeMode === 'scheduled'
@@ -400,15 +413,17 @@ app.post('/api/interact', async (req, res) => {
 });
 
 app.post('/api/task', (req, res) => {
-  const { name, minutes, execute, scheduledTime } = req.body;
+  const { name, minutes, seconds, execute, scheduledTime, reminder } = req.body;
   if (!name) return res.status(400).json({ error: '任务名称不能为空' });
 
   const task = scheduleTask({
     type: 'set_task',
     name,
     minutes,
+    seconds,
     execute,
-    scheduledTime
+    scheduledTime,
+    reminder
   });
   broadcastLog(`[任务安排]：${task.name}，${task.executeMode === 'now' ? '立即执行' : `${task.scheduledTime} 执行`}`);
   broadcastState();
