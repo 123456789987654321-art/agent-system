@@ -43,43 +43,26 @@ let homeState = {
   personHome: false,
   devices: Object.fromEntries(DEVICE_DEFINITIONS.map(device => [device.key, '关闭'])),
   activeTask: null,
-  pendingTasks: []
+  pendingTasks: [],
+  reports: []
 };
 
 // 任务心跳检测
 setInterval(() => {
   if (homeState.activeTask) {
-    homeState.activeTask.remaining--;
-    if (homeState.activeTask.remaining <= 0) {
-      broadcastLog(`[任务完成]：${homeState.activeTask.name} 结束`);
-      const finishedTask = homeState.activeTask;
-      homeState.activeTask = null;
-      broadcastTaskDone(finishedTask);
+    const runningTask = homeState.activeTask;
+    if (!runningTask.paused) {
+      runningTask.remaining--;
+      if (runningTask.remaining <= 0) finishTask(runningTask);
     }
   }
   activateReadyTask();
   broadcastState();
 }, 1000);
 
-// 页面全部关闭后不再保留任务，重新打开就是干净状态
-function clearStaleTasks() {
-  const cleared = (homeState.activeTask ? 1 : 0) + homeState.pendingTasks.length;
-  if (!cleared) return 0;
-  homeState.activeTask = null;
-  homeState.pendingTasks = [];
-  return cleared;
-}
-
+// 任务在服务端持续计时，页面登录与否都不影响；新页面连上先同步一次完整状态
 wss.on('connection', (socket) => {
-  if (wss.clients.size === 1) {
-    const cleared = clearStaleTasks();
-    if (cleared) broadcastLog('[任务清理]：上一个会话遗留的 ' + cleared + ' 个任务已清空');
-  }
   socket.send(JSON.stringify({ type: 'STATE_UPDATE', data: homeState }));
-
-  socket.on('close', () => {
-    if (wss.clients.size === 0) clearStaleTasks();
-  });
 });
 
 function broadcastState() {
@@ -88,11 +71,35 @@ function broadcastState() {
 function broadcastLog(logText) {
   wss.clients.forEach(c => c.readyState === WebSocket.OPEN && c.send(JSON.stringify({ type: 'AGENT_LOG', log: logText })));
 }
-function broadcastTaskDone(task) {
-  if (!task || !task.reminder) return;
-  const text = '现在要去' + task.name + '了';
-  const payload = JSON.stringify({ type: 'TASK_DONE', data: { id: task.id, name: task.name, reminder: true, text: text } });
-  wss.clients.forEach(c => c.readyState === WebSocket.OPEN && c.send(payload));
+function broadcastTaskDone(task, text) {
+  const payload = JSON.stringify({ type: 'TASK_DONE', data: { id: task.id, name: task.name, reminder: task.reminder === true, text: text } });
+  let sent = 0;
+  wss.clients.forEach(c => { if (c.readyState === WebSocket.OPEN) { c.send(payload); sent++; } });
+  return sent;
+}
+
+function addReport(task, text) {
+  homeState.reports.unshift({
+    id: task.id + '-r',
+    name: task.name,
+    reminder: task.reminder === true,
+    detail: text,
+    text: '你有一项任务没有按时完成：' + task.name,
+    missedAt: Date.now(),
+    read: false
+  });
+  homeState.reports = homeState.reports.slice(0, 20);
+  broadcastLog('[任务报告]：' + task.name + ' 在无人查看时结束，已存入报告');
+}
+
+function finishTask(task) {
+  if (!task) return;
+  const text = task.reminder ? '现在要去' + task.name + '了' : task.name + '任务已完成';
+  homeState.activeTask = null;
+  broadcastLog('[任务完成]：' + task.name + ' 结束');
+  const delivered = broadcastTaskDone(task, text);
+  if (!delivered) addReport(task, text);
+  broadcastState();
 }
 
 function normalizeCommandText(text) {
@@ -470,6 +477,62 @@ app.post('/api/face_detect', (req, res) => {
   res.json({ status: "ready" });
 });
 
+function formatDuration(seconds) {
+  const value = Math.max(0, Math.round(Number(seconds) || 0));
+  if (value >= 3600 && value % 3600 === 0) return (value / 3600) + '小时';
+  if (value >= 60 && value % 60 === 0) return (value / 60) + '分钟';
+  if (value >= 60) return Math.floor(value / 60) + '分' + (value % 60) + '秒';
+  return value + '秒';
+}
+
+// 倒计时框的暂停、继续、清除、延长、提前
+app.post('/api/task_control', (req, res) => {
+  const { action, seconds, minutes } = req.body || {};
+  const task = homeState.activeTask;
+  const amountSeconds = Number(seconds) > 0 ? Math.round(Number(seconds)) : Math.max(0, Math.round(Number(minutes) || 0)) * 60;
+  let message = '';
+
+  if (!task) return res.status(400).json({ error: '当前没有正在执行的任务' });
+
+  if (action === 'pause') {
+    task.paused = true;
+    message = '已暂停' + task.name + '的倒计时';
+  } else if (action === 'resume') {
+    task.paused = false;
+    message = '已继续' + task.name + '的倒计时';
+  } else if (action === 'cancel') {
+    message = '已清除当前任务：' + task.name;
+    homeState.activeTask = null;
+  } else if (action === 'extend') {
+    if (!amountSeconds) return res.status(400).json({ error: '请说明要增加多长时间' });
+    task.totalSeconds += amountSeconds;
+    task.remaining += amountSeconds;
+    task.endTime = formatClock(new Date(Date.now() + task.remaining * 1000));
+    message = '已把' + task.name + '延长' + formatDuration(amountSeconds);
+  } else if (action === 'advance') {
+    if (!amountSeconds) return res.status(400).json({ error: '请说明要提前多长时间' });
+    task.totalSeconds = Math.max(1, task.totalSeconds - amountSeconds);
+    task.remaining = task.remaining - amountSeconds;
+    message = '已把' + task.name + '提前' + formatDuration(amountSeconds);
+    if (task.remaining <= 0) finishTask(task);
+  } else {
+    return res.status(400).json({ error: '不支持的任务操作' });
+  }
+
+  broadcastLog('[任务控制]：' + message);
+  broadcastState();
+  res.json({ success: true, message: message, task: homeState.activeTask });
+});
+
+// 数字人旁边的任务报告：标记已读
+app.post('/api/report_read', (req, res) => {
+  const { id, all } = req.body || {};
+  homeState.reports.forEach(report => {
+    if (all || report.id === id) report.read = true;
+  });
+  broadcastState();
+  res.json({ success: true, reports: homeState.reports });
+});
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });

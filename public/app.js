@@ -305,6 +305,122 @@ function handleTaskDone(task) {
   agentSpeak(text);
 }
 
+// ==== 倒计时框控制：暂停 / 继续 / 清除 / 延长 / 提前 ====
+let pendingReports = [];
+let missedReportsAnnounced = false;
+
+function parseTaskControlCommand(text) {
+  const compact = String(text || '').replace(/\s+/g, '');
+  const delay = parseRelativeDelay(compact);
+  const amount = delay && delay.seconds ? delay.seconds : 0;
+
+  if (/暂停/.test(compact)) return { action: 'pause', seconds: 0 };
+  if (/继续|恢复|接着计/.test(compact)) return { action: 'resume', seconds: 0 };
+  if (/(清除|清空|取消)/.test(compact) && /(任务|倒计时)/.test(compact)) return { action: 'cancel', seconds: 0 };
+  if (/延长|增加|加长|加时/.test(compact)) return { action: 'extend', seconds: amount || 300 };
+  if (/提前/.test(compact)) return { action: 'advance', seconds: amount || 300 };
+  return null;
+}
+
+async function controlTask(action, seconds) {
+  try {
+    const res = await fetch('/api/task_control', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: action, seconds: seconds || 0 })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '任务操作失败');
+    const text = data.message || '操作完成';
+    showGlobalVoiceStatus('任务控制', text, 'idle');
+    agentSpeak(text);
+  } catch (error) {
+    const text = error.message || '任务操作失败';
+    showGlobalVoiceStatus('任务控制失败', text, 'idle');
+    agentSpeak(text);
+  }
+}
+
+// ==== 数字人任务报告 ====
+function toggleReportPanel() {
+  const panel = document.getElementById('taskReportPanel');
+  const btn = document.getElementById('taskReportBtn');
+  if (!panel) return;
+  panel.hidden = !panel.hidden;
+  if (btn) btn.setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
+}
+
+async function markReportRead(id) {
+  try {
+    await fetch('/api/report_read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: id })
+    });
+  } catch (error) {
+    console.warn('报告已读失败', error);
+  }
+}
+
+async function markAllReportsRead() {
+  try {
+    await fetch('/api/report_read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ all: true })
+    });
+  } catch (error) {
+    console.warn('报告已读失败', error);
+  }
+}
+
+function renderTaskReports(reports) {
+  const countBadge = document.getElementById('taskReportCount');
+  const listEl = document.getElementById('taskReportList');
+  const unread = reports.filter(report => !report.read);
+  pendingReports = unread;
+
+  if (countBadge) {
+    countBadge.hidden = unread.length === 0;
+    countBadge.innerText = String(unread.length);
+  }
+
+  if (listEl) {
+    listEl.onclick = function (event) {
+      const target = event.target;
+      const reportId = target && target.getAttribute ? target.getAttribute('data-report-id') : null;
+      if (reportId) markReportRead(reportId);
+    };
+
+    if (!reports.length) {
+      listEl.innerHTML = '<p class=\'task-report-empty\'>暂无任务报告</p>';
+    } else {
+      listEl.innerHTML = reports.map(report => {
+        const time = new Date(report.missedAt).toLocaleTimeString().slice(0, 5);
+        const button = report.read ? '' : '<button type=\'button\' class=\'task-report-read\' data-report-id=\'' + report.id + '\'>阅读</button>';
+        return '<div class=\'task-report-item' + (report.read ? '' : ' is-unread') + '\'>'
+          + '<div class=\'task-report-meta\'><strong>' + escapeHtml(report.name) + '</strong><span>' + time + '</span></div>'
+          + '<p>' + escapeHtml(report.detail || report.text || '') + '</p>'
+          + button
+          + '</div>';
+      }).join('');
+    }
+  }
+
+  announceMissedReports();
+}
+
+function announceMissedReports() {
+  if (missedReportsAnnounced) return;
+  if (isAgentOffline()) return;
+  if (!pendingReports.length) return;
+  missedReportsAnnounced = true;
+  const text = pendingReports.length > 1
+    ? '你有' + pendingReports.length + '项任务没有按时完成，请查看任务报告'
+    : '你有一项任务没有按时完成，请查看任务报告';
+  setTimeout(() => agentSpeak(text), 800);
+}
+
 async function sendVoiceCommand() {
   const text = document.getElementById('userInput').value;
   if (!text) {
@@ -322,6 +438,14 @@ async function sendVoiceCommand() {
       return;
     }
     agentSpeak(buildWeatherNarrative(snapshot));
+    return;
+  }
+
+  const controlCommand = parseTaskControlCommand(text);
+  if (controlCommand) {
+    document.getElementById('userInput').value = '';
+    showGlobalVoiceStatus('任务控制', '正在执行任务操作...', 'thinking');
+    await controlTask(controlCommand.action, controlCommand.seconds);
     return;
   }
 
@@ -1083,9 +1207,9 @@ function renderUI(state) {
     if (taskNameEl) taskNameEl.innerText = state.activeTask.name;
     if (timeLeftEl) timeLeftEl.innerText = timeStr;
     if (scheduleHintEl) {
-      scheduleHintEl.innerText = state.activeTask.startTime && state.activeTask.endTime
-        ? `${state.activeTask.startTime} - ${state.activeTask.endTime}`
-        : '当前任务';
+      scheduleHintEl.innerText = state.activeTask.paused
+        ? '已暂停'
+        : (state.activeTask.startTime && state.activeTask.endTime ? state.activeTask.startTime + ' - ' + state.activeTask.endTime : '当前任务');
     }
     drawCanvas(1 - (rem / state.activeTask.totalSeconds), rem <= 300);
     renderPendingOverlay(pendingTasks);
@@ -1106,6 +1230,7 @@ function renderUI(state) {
     renderPendingOverlay([]);
   }
   
+  renderTaskReports(Array.isArray(state.reports) ? state.reports : []);
 }
 
 function drawCanvas(percent, isAlert) {

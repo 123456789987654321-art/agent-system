@@ -777,3 +777,50 @@ body.dark-mode .hourly-item.past { background: #1e293b; border-color: #334155; o
   background: linear-gradient(180deg, #b9808a, #9b6570);
 }
 body.dark-mode .digital-human-card.agent-offline .avatar-online { background: rgba(148, 163, 184, 0.16); }
+
+/* ==== 任务计时控制 与 数字人任务报告 ==== */
+.task-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; justify-content: center; }
+.task-ctrl-btn {
+  padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 12px;
+  border: 1px solid var(--border-color); background: var(--panel-bg); color: var(--text-main);
+  transition: all 0.2s ease;
+}
+.task-ctrl-btn:hover { border-color: #007bff; color: #007bff; }
+.task-ctrl-btn.is-danger { border-color: #e53e3e; color: #e53e3e; }
+.task-ctrl-btn.is-danger:hover { background: rgba(229, 62, 62, 0.08); }
+.avatar-head-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.task-report-btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; cursor: pointer;
+  border-radius: 999px; font-size: 11px; font-weight: bold;
+  color: var(--text-sub); background: var(--panel-bg); border: 1px solid var(--border-color);
+}
+.task-report-btn:hover { border-color: #007bff; color: #007bff; }
+.task-report-count {
+  display: inline-flex; min-width: 16px; height: 16px; align-items: center; justify-content: center;
+  padding: 0 4px; border-radius: 999px; background: #ff5b5b; color: #ffffff; font-size: 10px;
+}
+.task-report-count[hidden] { display: none; }
+.task-report-panel {
+  position: relative; z-index: 6; margin: 10px 0 4px; padding: 12px;
+  border: 1px solid var(--border-color); border-radius: 12px;
+  background: var(--panel-bg); box-shadow: 0 8px 20px rgba(0, 55, 105, 0.08);
+}
+.task-report-panel[hidden] { display: none; }
+.task-report-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+.task-report-read-all {
+  padding: 4px 8px; border-radius: 8px; cursor: pointer; font-size: 11px;
+  border: 1px solid var(--border-color); background: transparent; color: var(--text-sub);
+}
+.task-report-list { display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; }
+.task-report-item {
+  padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border-color);
+  background: rgba(0, 123, 255, 0.04); font-size: 12px;
+}
+.task-report-item.is-unread { border-color: #ff5b5b; background: rgba(255, 91, 91, 0.06); }
+.task-report-meta { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; color: var(--text-sub); font-size: 11px; }
+.task-report-item p { margin: 0 0 6px; color: var(--text-main); }
+.task-report-read {
+  padding: 3px 10px; border-radius: 999px; cursor: pointer; font-size: 11px;
+  border: 1px solid #007bff; background: transparent; color: #007bff;
+}
+.task-report-empty { margin: 0; color: var(--text-sub); font-size: 12px; }

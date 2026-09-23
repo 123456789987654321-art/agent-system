@@ -55,6 +55,15 @@
               </div>
               <div class="pending-task-overlay" id="pendingTaskOverlay"></div>
             </div>
+            <div class="task-controls" id="taskControls">
+              <button type="button" class="task-ctrl-btn" onclick="controlTask('pause')">⏸ 暂停</button>
+              <button type="button" class="task-ctrl-btn" onclick="controlTask('resume')">▶ 继续</button>
+              <button type="button" class="task-ctrl-btn" onclick="controlTask('extend', 60)">+1分</button>
+              <button type="button" class="task-ctrl-btn" onclick="controlTask('extend', 300)">+5分</button>
+              <button type="button" class="task-ctrl-btn" onclick="controlTask('advance', 60)">提前1分</button>
+              <button type="button" class="task-ctrl-btn" onclick="controlTask('advance', 300)">提前5分</button>
+              <button type="button" class="task-ctrl-btn is-danger" onclick="controlTask('cancel')">清除任务</button>
+            </div>
           </div>
 
           <div class="card input-card">
@@ -72,10 +81,20 @@
                 <span class="avatar-kicker">WEB DIGITAL HUMAN</span>
                 <h3>AI 3D 数字人管家</h3>
               </div>
-              <div class="avatar-online" id="avatarOnlineBadge"><span class="avatar-online-dot"></span><span class="avatar-online-text">在线</span></div>
+              <div class="avatar-head-actions">
+                <button type="button" class="task-report-btn" id="taskReportBtn" onclick="toggleReportPanel()" aria-expanded="false">📋 任务报告<span class="task-report-count" id="taskReportCount" hidden>0</span></button>
+                <div class="avatar-online" id="avatarOnlineBadge"><span class="avatar-online-dot"></span><span class="avatar-online-text">在线</span></div>
+              </div>
             </div>
 
             <div class="avatar-container">
+              <div class="task-report-panel" id="taskReportPanel" hidden>
+                <div class="task-report-head">
+                  <strong>任务报告</strong>
+                  <button type="button" class="task-report-read-all" onclick="markAllReportsRead()">全部已读</button>
+                </div>
+                <div class="task-report-list" id="taskReportList"></div>
+              </div>
               <div class="avatar-3d-wrapper" id="avatarStage">
                 <div class="avatar-grid"></div>
                 <div class="avatar-aura"></div>
