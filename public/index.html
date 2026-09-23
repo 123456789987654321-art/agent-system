@@ -56,13 +56,22 @@
               <div class="pending-task-overlay" id="pendingTaskOverlay"></div>
             </div>
             <div class="task-controls" id="taskControls">
-              <button type="button" class="task-ctrl-btn" onclick="controlTask('pause')">⏸ 暂停</button>
-              <button type="button" class="task-ctrl-btn" onclick="controlTask('resume')">▶ 继续</button>
-              <button type="button" class="task-ctrl-btn" onclick="controlTask('extend', 60)">+1分</button>
-              <button type="button" class="task-ctrl-btn" onclick="controlTask('extend', 300)">+5分</button>
-              <button type="button" class="task-ctrl-btn" onclick="controlTask('advance', 60)">提前1分</button>
-              <button type="button" class="task-ctrl-btn" onclick="controlTask('advance', 300)">提前5分</button>
-              <button type="button" class="task-ctrl-btn is-danger" onclick="controlTask('cancel')">清除任务</button>
+              <span class="task-ctrl-group">
+                <button type="button" class="task-ctrl-btn" onclick="controlTask('pause')">⏸ 暂停</button>
+                <button type="button" class="task-ctrl-btn" onclick="controlTask('resume')">▶ 继续</button>
+              </span>
+              <span class="task-ctrl-group">
+                <button type="button" class="task-ctrl-btn" onclick="controlTask('extend', 60)">延长1分钟</button>
+                <button type="button" class="task-ctrl-btn" onclick="controlTask('extend', 300)">延长5分钟</button>
+              </span>
+              <span class="task-ctrl-group">
+                <button type="button" class="task-ctrl-btn" onclick="controlTask('advance', 60)">提前1分钟</button>
+                <button type="button" class="task-ctrl-btn" onclick="controlTask('advance', 300)">提前5分钟</button>
+                <button type="button" class="task-ctrl-btn" onclick="controlTask('next')">提前下一个任务</button>
+              </span>
+              <span class="task-ctrl-group">
+                <button type="button" class="task-ctrl-btn is-danger" onclick="controlTask('cancel')">取消当前任务</button>
+              </span>
             </div>
           </div>
 

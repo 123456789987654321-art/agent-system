@@ -318,6 +318,7 @@ function parseTaskControlCommand(text) {
   if (/继续|恢复|接着计/.test(compact)) return { action: 'resume', seconds: 0 };
   if (/(清除|清空|取消)/.test(compact) && /(任务|倒计时)/.test(compact)) return { action: 'cancel', seconds: 0 };
   if (/延长|增加|加长|加时/.test(compact)) return { action: 'extend', seconds: amount || 300 };
+  if (/(下一个|下个|下一项)/.test(compact) && /(提前|开始|立即|马上|现在)/.test(compact)) return { action: 'next', seconds: 0 };
   if (/提前/.test(compact)) return { action: 'advance', seconds: amount || 300 };
   return null;
 }

@@ -492,6 +492,25 @@ app.post('/api/task_control', (req, res) => {
   const amountSeconds = Number(seconds) > 0 ? Math.round(Number(seconds)) : Math.max(0, Math.round(Number(minutes) || 0)) * 60;
   let message = '';
 
+  if (action === 'next') {
+    if (!homeState.pendingTasks.length) return res.status(400).json({ error: '没有等待中的任务' });
+    homeState.pendingTasks.sort((a, b) => a.scheduledAt - b.scheduledAt);
+    const nextTask = homeState.pendingTasks.shift();
+    if (task) {
+      nextTask.executeMode = 'scheduled';
+      nextTask.scheduledAt = Date.now() + task.remaining * 1000 + 1000;
+      nextTask.scheduledTime = formatClock(new Date(nextTask.scheduledAt));
+      homeState.pendingTasks.unshift(nextTask);
+      message = '已把下一个任务提前到当前任务结束后立即开始：' + nextTask.name;
+    } else {
+      activateTask(nextTask);
+      message = '已提前开始下一个任务：' + nextTask.name;
+    }
+    broadcastLog('[任务控制]：' + message);
+    broadcastState();
+    return res.json({ success: true, message: message, task: homeState.activeTask });
+  }
+
   if (!task) return res.status(400).json({ error: '当前没有正在执行的任务' });
 
   if (action === 'pause') {
@@ -501,10 +520,10 @@ app.post('/api/task_control', (req, res) => {
     task.paused = false;
     message = '已继续' + task.name + '的倒计时';
   } else if (action === 'cancel') {
-    message = '已清除当前任务：' + task.name;
+    message = '已取消当前任务：' + task.name;
     homeState.activeTask = null;
   } else if (action === 'extend') {
-    if (!amountSeconds) return res.status(400).json({ error: '请说明要增加多长时间' });
+    if (!amountSeconds) return res.status(400).json({ error: '请说明要延长多长时间' });
     task.totalSeconds += amountSeconds;
     task.remaining += amountSeconds;
     task.endTime = formatClock(new Date(Date.now() + task.remaining * 1000));
