@@ -7,3 +7,5 @@ npm-debug.log
 .gitignore
 work
 outputs
+
+.data/

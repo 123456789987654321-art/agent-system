@@ -6,6 +6,10 @@ const WebSocket = require('ws');
 const axios = require('axios');
 const { createAddressLookup } = require('./services/location-address');
 const lookupAddress = createAddressLookup();
+const { createDailyReportStore } = require('./services/daily-report');
+const reportStore = createDailyReportStore({
+  filePath: process.env.REPORT_DATA_FILE || path.join(__dirname, '.data', 'report-events.json')
+});
 
 const app = express();
 app.use(express.static(path.join(__dirname, 'public'), {
@@ -83,8 +87,19 @@ function broadcastTaskDone(task, text) {
   return sent;
 }
 
+function recordReportEvent(type, details) {
+  reportStore.record(type, details);
+  const payload = JSON.stringify({ type: 'REPORT_UPDATE' });
+  wss.clients.forEach(client => { if (client.readyState === WebSocket.OPEN) client.send(payload); });
+}
+
+function taskReportDetails(task) {
+  return { taskId: task.id, name: task.name, reminder: task.reminder === true, scheduledAt: task.scheduledAt };
+}
+
 function finishTask(task) {
   if (!task) return;
+  recordReportEvent(task.reminder ? 'reminder_due' : 'task_finished', taskReportDetails(task));
   const text = task.reminder ? '现在要去' + task.name + '了' : task.name + '任务已完成';
   homeState.activeTask = null;
   broadcastLog('[任务完成]：' + task.name + ' 结束');
@@ -94,7 +109,10 @@ function finishTask(task) {
 
 // 统一写入设备状态。
 function applyDeviceState(deviceKey, state) {
+  if (!DEVICE_BY_KEY.has(deviceKey) || !['开启', '关闭'].includes(state)) return;
+  if (homeState.devices[deviceKey] === state) return;
   homeState.devices[deviceKey] = state;
+  recordReportEvent('device_changed', { device: deviceKey, name: DEVICE_BY_KEY.get(deviceKey).name, state });
 }
 
 function normalizeCommandText(text) {
@@ -301,6 +319,7 @@ function activateTask(task) {
     endTime: formatClock(new Date(startedAt.getTime() + task.totalSeconds * 1000)),
     remaining: task.totalSeconds
   };
+  recordReportEvent('task_started', taskReportDetails(task));
   broadcastLog(`[任务开始]：${task.name}`);
 }
 
@@ -316,6 +335,7 @@ function activateReadyTask() {
 
 function scheduleTask(action) {
   const task = makeTask(action);
+  recordReportEvent('task_created', taskReportDetails(task));
 
   if (task.executeMode === 'now' && !homeState.activeTask) {
     activateTask(task);
@@ -456,7 +476,7 @@ app.post('/api/task', (req, res) => {
 // 前端手动点击控制开关的 API
 app.post('/api/toggle_device', (req, res) => {
   const { device, state } = req.body;
-  if (homeState.devices[device] !== undefined) {
+  if (DEVICE_BY_KEY.has(device) && ['开启', '关闭'].includes(state)) {
     applyDeviceState(device, state);
     broadcastLog(`[手动控制]：${device} 被手动切换为 ${state}`);
     broadcastState();
@@ -501,6 +521,7 @@ app.post('/api/task_control', (req, res) => {
       activateTask(nextTask);
       message = '已提前开始下一个任务：' + nextTask.name;
     }
+    recordReportEvent('task_rescheduled', taskReportDetails(nextTask));
     broadcastLog('[任务控制]：' + message);
     broadcastState();
     return res.json({ success: true, message: message, task: homeState.activeTask });
@@ -533,6 +554,8 @@ app.post('/api/task_control', (req, res) => {
     return res.status(400).json({ error: '不支持的任务操作' });
   }
 
+  const eventTypes = { pause: 'task_paused', resume: 'task_resumed', cancel: 'task_cancelled', extend: 'task_extended', advance: 'task_advanced' };
+  recordReportEvent(eventTypes[action], { ...taskReportDetails(task), seconds: amountSeconds });
   broadcastLog('[任务控制]：' + message);
   broadcastState();
   res.json({ success: true, message: message, task: homeState.activeTask });
@@ -552,6 +575,18 @@ app.get('/api/location/address', async (req, res) => {
     const status = error.statusCode || 502;
     if (status === 429) res.set('Retry-After', '1');
     res.status(status).json({ error: error.message });
+  }
+});
+
+app.get('/api/report/today', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const timeZone = req.query.timeZone || 'Asia/Shanghai';
+  if (typeof timeZone !== 'string' || timeZone.length > 100) return res.status(400).json({ error: '无效的时区' });
+  try {
+    res.json(reportStore.today(timeZone, homeState));
+  } catch (error) {
+    if (error instanceof RangeError) return res.status(400).json({ error: '无效的时区' });
+    res.status(500).json({ error: '报告暂时无法生成' });
   }
 });
 

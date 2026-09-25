@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <title>居家管理辅助控制系统</title>
-  <link rel="stylesheet" href="style.css?v=20260925-no-reports">
+  <link rel="stylesheet" href="style.css?v=20260925-report">
+  <link rel="stylesheet" href="report.css?v=20260925-report">
   <!-- 引入谷歌 3D 渲染引擎 -->
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
   <!-- 引入 Chart.js 用于绘制折线图 -->
@@ -14,12 +15,13 @@
     <!-- 左侧导航栏 -->
     <aside class="sidebar-block">
       <div class="nav-items">
-        <div class="nav-item active" onclick="switchPage('overview', this)">🏠 总览</div>
-        <div class="nav-item" onclick="switchPage('appliances', this)">📺 家电</div>
-        <div class="nav-item" onclick="switchPage('weather', this)">🌤️ 天气</div>
-        <div class="nav-item" onclick="switchPage('settings', this)">⚙️ 设置</div>
+        <div class="nav-item active" onclick="switchPage('overview', this)"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-home"></use></svg> 总览</div>
+        <div class="nav-item" onclick="switchPage('appliances', this)"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-devices"></use></svg> 家电</div>
+        <div class="nav-item" onclick="switchPage('weather', this)"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-cloud-sun"></use></svg> 天气</div>
+        <button type="button" class="nav-item report-nav" onclick="switchPage('report', this)"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925-report#icon-report"></use></svg> 报告</button>
+        <div class="nav-item" onclick="switchPage('settings', this)"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-settings"></use></svg> 设置</div>
       </div>
-      <button class="wake-btn" onclick="summonButler()">🎙 呼唤管家</button>
+      <button class="wake-btn" onclick="summonButler()"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-mic"></use></svg> 呼唤管家</button>
     </aside>
 
     <!-- 右侧主内容区 -->
@@ -57,8 +59,8 @@
             </div>
             <div class="task-controls" id="taskControls">
               <span class="task-ctrl-group">
-                <button type="button" class="task-ctrl-btn" onclick="controlTask('pause')">⏸ 暂停</button>
-                <button type="button" class="task-ctrl-btn" onclick="controlTask('resume')">▶ 继续</button>
+                <button type="button" class="task-ctrl-btn" onclick="controlTask('pause')"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-pause"></use></svg> 暂停</button>
+                <button type="button" class="task-ctrl-btn" onclick="controlTask('resume')"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-play"></use></svg> 继续</button>
               </span>
               <span class="task-ctrl-group">
                 <button type="button" class="task-ctrl-btn" onclick="controlTask('extend', 60)">延长1分钟</button>
@@ -96,7 +98,7 @@
             <div class="avatar-container">
               <div class="task-alert-bar" id="taskAlertBar" hidden>
                 <span class="task-alert-text" id="taskAlertText"></span>
-                <button type="button" class="task-alert-action" onclick="speakPendingAlert()">🔊 播报</button>
+                <button type="button" class="task-alert-action" onclick="speakPendingAlert()"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-volume"></use></svg> 播报</button>
                 <button type="button" class="task-alert-action" onclick="dismissPendingAlert()">忽略</button>
               </div>
               <div class="avatar-3d-wrapper" id="avatarStage">
@@ -187,8 +189,8 @@
               </div>
 
               <div class="avatar-actions">
-                <button class="avatar-action primary" type="button" onclick="startAvatarListening()">🎙 对管家说话</button>
-                <button class="avatar-action" type="button" onclick="greetDigitalHuman()">👋 打招呼</button>
+                <button class="avatar-action primary" type="button" onclick="startAvatarListening()"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-mic"></use></svg> 对管家说话</button>
+                <button class="avatar-action" type="button" onclick="greetDigitalHuman()"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-wave"></use></svg> 打招呼</button>
               </div>
             </div>
           </div>
@@ -202,7 +204,7 @@
           
           <!-- 门类 -->
           <div class="card">
-            <h3>🚪 门控系统</h3>
+            <h3><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-door"></use></svg> 门控系统</h3>
             <div class="device-grid">
               <div class="device-item"><span>大门</span><strong id="dev-door_main" class="off">关闭</strong>
                 <label class="switch"><input type="checkbox" id="switch-door_main" onchange="toggleDevice('door_main', '大门')"><span class="slider"></span></label>
@@ -221,7 +223,7 @@
 
           <!-- 灯类 -->
           <div class="card">
-            <h3>💡 照明系统</h3>
+            <h3><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-light"></use></svg> 照明系统</h3>
             <div class="device-grid">
               <div class="device-item"><span>客厅灯</span><strong id="dev-light_living" class="off">关闭</strong>
                 <label class="switch"><input type="checkbox" id="switch-light_living" onchange="toggleDevice('light_living', '客厅灯')"><span class="slider"></span></label>
@@ -243,7 +245,7 @@
 
           <!-- 窗户类 -->
           <div class="card">
-            <h3>🪟 窗户控制</h3>
+            <h3><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-window"></use></svg> 窗户控制</h3>
             <div class="device-grid">
               <div class="device-item"><span>客厅窗</span><strong id="dev-window_living" class="off">关闭</strong>
                 <label class="switch"><input type="checkbox" id="switch-window_living" onchange="toggleDevice('window_living', '客厅窗')"><span class="slider"></span></label>
@@ -259,7 +261,7 @@
 
           <!-- 其它家电 -->
           <div class="card">
-            <h3>📺 生活电器</h3>
+            <h3><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-devices"></use></svg> 生活电器</h3>
             <div class="device-grid">
               <div class="device-item"><span>空调</span><strong id="dev-ac" class="off">关闭</strong>
                 <label class="switch"><input type="checkbox" id="switch-ac" onchange="toggleDevice('ac', '空调')"><span class="slider"></span></label>
@@ -297,7 +299,7 @@
         </div>
 
         <div class="card weather-trend-card">
-          <h3>🧭 当前气象细节与 24h 趋势</h3>
+          <h3><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-compass"></use></svg> 当前气象细节与 24h 趋势</h3>
           <div class="weather-chart-wrapper">
             <div class="weather-metrics-overlay">
               <div class="weather-metric weather-metric-feels">
@@ -325,7 +327,22 @@
         </div>
       </div>
 
-      <!-- 页面 4：设置 -->
+      <!-- 页面 4：今日报告 -->
+      <div id="page-report" class="page-view report-page">
+        <div class="report-toolbar">
+          <div><h2>今日居家报告</h2><p>回顾今天的天气、任务与家电活动。</p></div>
+          <div class="report-actions">
+            <button type="button" class="report-button" onclick="DailyReport.refresh()"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925-report#icon-refresh"></use></svg> 刷新</button>
+            <button type="button" class="report-button" data-report-action disabled onclick="DailyReport.expand()" aria-haspopup="dialog"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925-report#icon-expand"></use></svg> 放大阅读</button>
+            <button type="button" class="report-button primary" data-report-action data-report-speak disabled aria-pressed="false" onclick="DailyReport.speak()"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925-report#icon-volume"></use></svg> <span>语音播报</span></button>
+          </div>
+        </div>
+        <div id="reportStats" class="report-stats"></div>
+        <article id="reportContent" class="card report-document"><p class="report-empty">进入报告后，将自动整理今天的系统记录。</p></article>
+        <p id="reportStatus" class="report-status" role="status" aria-live="polite"></p>
+      </div>
+
+      <!-- 页面 5：设置 -->
       <div id="page-settings" class="page-view">
         <div class="card">
           <h3>界面显示设置</h3>
@@ -358,9 +375,9 @@
             </div>
           </div>
           <div style="margin-top: 20px; display: flex; align-items: center; gap: 15px;">
-            <button class="wake-btn" style="margin: 0; background: #007bff;" onclick="saveConfig('permanent')">💾 保存配置 (永久)</button>
-            <button class="wake-btn" style="margin: 0; background: #ed8936;" onclick="saveConfig('session')">🕒 仅本次使用 (网页关即删)</button>
-            <span id="saveStatus" style="color: #48bb78; font-weight: bold; display: none;">✓ 已生效</span>
+            <button class="wake-btn" style="margin: 0; background: #007bff;" onclick="saveConfig('permanent')"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-save"></use></svg> 保存配置 (永久)</button>
+            <button class="wake-btn" style="margin: 0; background: #ed8936;" onclick="saveConfig('session')"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-clock"></use></svg> 仅本次使用 (网页关即删)</button>
+            <span id="saveStatus" style="color: #48bb78; font-weight: bold; display: none;"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-check"></use></svg> <span id="saveStatusText">已生效</span></span>
           </div>
         </div>
       </div>
@@ -368,15 +385,27 @@
     </main>
   </div>
 
+  <dialog id="reportDialog" class="report-dialog" aria-labelledby="reportDialogTitle">
+    <div class="report-dialog-head">
+      <h2 id="reportDialogTitle">报告 · 放大阅读</h2>
+      <div class="report-actions">
+        <button type="button" class="report-button primary" data-report-action data-report-speak disabled aria-pressed="false" onclick="DailyReport.speak()"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925-report#icon-volume"></use></svg> <span>语音播报</span></button>
+        <button type="button" class="report-button" onclick="DailyReport.close()" autofocus><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925-report#icon-close"></use></svg> 关闭</button>
+      </div>
+    </div>
+    <article id="reportExpandedContent" class="report-expanded-content"></article>
+  </dialog>
+
   <div class="global-voice-panel" id="globalVoicePanel" aria-live="polite" aria-hidden="true">
     <span class="global-voice-pulse"><i></i></span>
     <div class="global-voice-copy">
       <strong id="globalVoiceTitle">呼唤管家</strong>
       <span id="globalVoiceText">正在准备语音通道...</span>
     </div>
-    <button type="button" class="global-voice-close" onclick="hideGlobalVoiceStatus(true)" aria-label="关闭语音状态">×</button>
+    <button type="button" class="global-voice-close" onclick="hideGlobalVoiceStatus(true)" aria-label="关闭语音状态"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-close"></use></svg></button>
   </div>
 
-  <script src="app.js?v=20260925-no-reports"></script>
+  <script src="app.js?v=20260925-report"></script>
+  <script src="report.js?v=20260925-report"></script>
 </body>
 </html>

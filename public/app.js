@@ -254,7 +254,7 @@ function saveConfig(mode) {
   updateAgentConnectionState();
 
   const status = document.getElementById('saveStatus');
-  status.innerText = mode === 'permanent' ? '✓ 配置已永久保存' : '✓ 密钥仅本次有效';
+  document.getElementById('saveStatusText').innerText = mode === 'permanent' ? '配置已永久保存' : '密钥仅本次有效';
   status.style.display = 'inline-block';
   setTimeout(() => status.style.display = 'none', 2000);
 }
@@ -265,21 +265,28 @@ function switchPage(pageId, element) {
   document.getElementById(`page-${pageId}`).classList.add('active');
   if (element) element.classList.add('active');
   if (pageId === 'weather') fetchWeather();
+  if (pageId === 'report') window.DailyReport?.open();
+  else window.DailyReport?.leave();
 }
 
 function toggleTheme() { document.body.classList.toggle('dark-mode'); }
 
 function getWeatherInfo(code) {
   const value = Number(code);
-  if (value === 0) return { text: '晴朗', icon: '☀️' };
-  if ([1, 2].includes(value)) return { text: '多云', icon: '⛅' };
-  if (value === 3) return { text: '阴天', icon: '☁️' };
-  if ([45, 48].includes(value)) return { text: '有雾', icon: '🌫️' };
-  if ([51, 53, 55, 56, 57].includes(value)) return { text: '毛毛雨', icon: '🌦️' };
-  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(value)) return { text: '下雨', icon: '🌧️' };
-  if ([71, 73, 75, 77, 85, 86].includes(value)) return { text: '下雪', icon: '❄️' };
-  if ([95, 96, 99].includes(value)) return { text: '雷雨', icon: '⛈️' };
-  return { text: '多云', icon: '⛅' };
+  if (value === 0) return { text: '晴朗', icon: 'sun' };
+  if ([1, 2].includes(value)) return { text: '多云', icon: 'cloud-sun' };
+  if (value === 3) return { text: '阴天', icon: 'cloud' };
+  if ([45, 48].includes(value)) return { text: '有雾', icon: 'fog' };
+  if ([51, 53, 55, 56, 57].includes(value)) return { text: '毛毛雨', icon: 'drizzle' };
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(value)) return { text: '下雨', icon: 'rain' };
+  if ([71, 73, 75, 77, 85, 86].includes(value)) return { text: '下雪', icon: 'snow' };
+  if ([95, 96, 99].includes(value)) return { text: '雷雨', icon: 'storm' };
+  return { text: '多云', icon: 'cloud-sun' };
+}
+
+function weatherIconMarkup(icon, label) {
+  // Names and labels come from the fixed weather-code map.
+  return `<svg class="ui-icon weather-icon" role="img" aria-label="${escapeHtml(label)}"><use href="icons.svg?v=20260925#icon-${escapeHtml(icon)}"></use></svg>`;
 }
 
 function isWeatherQuestion(text) {
@@ -983,6 +990,7 @@ async function triggerFaceDetect() {
 
 // 3D 动作与语音同步联动
 function agentSpeak(text) {
+  window.DailyReport?.stopSpeech();
   const statusEl = document.querySelector('.avatar-status');
   const hologramBase = document.getElementById('hologramBase');
   const stage = document.getElementById('avatarStage');
@@ -1072,7 +1080,7 @@ async function fetchHourlyWeather() {
     let html = '';
     sortedData.forEach(item => {
       let pastClass = item.isPast ? ' past' : '';
-      html += `<div class="hourly-item${pastClass}"><div style="font-size: 14px; font-weight: bold; color: var(--text-main);">${item.label}</div><div style="font-size: 22px; margin: 6px 0;">${item.icon}</div><div class="text-status">${item.status}</div><div class="text-temp"><span class="temp-high">${item.high}°</span> / <span class="temp-low">${item.low}°</span></div></div>`;
+      html += `<div class="hourly-item${pastClass}"><div style="font-size: 14px; font-weight: bold; color: var(--text-main);">${item.label}</div><div class="hourly-weather-icon">${weatherIconMarkup(item.icon, item.status)}</div><div class="text-status">${item.status}</div><div class="text-temp"><span class="temp-high">${item.high}°</span> / <span class="temp-low">${item.low}°</span></div></div>`;
     });
     if(container) container.innerHTML = html;
 
@@ -1142,7 +1150,7 @@ async function fetchWeather() {
         const minT = data.daily.temperature_2m_min[i];
         const code = data.daily.weathercode[i];
         const weatherInfo = getWeatherInfo(code);
-        html += `<div class="weather-card"><div style="color: var(--text-sub); font-size: 12px;">${date}</div><div style="font-size: 30px; margin: 10px 0;">${weatherInfo.icon}</div><div><strong>${maxT}°</strong> / ${minT}°</div></div>`;
+        html += `<div class="weather-card"><div style="color: var(--text-sub); font-size: 12px;">${date}</div><div class="daily-weather-icon">${weatherIconMarkup(weatherInfo.icon, weatherInfo.text)}</div><div><strong>${maxT}°</strong> / ${minT}°</div></div>`;
       }
       if (container) container.innerHTML = html;
 
@@ -1198,6 +1206,7 @@ ws.onmessage = (event) => {
   if (msg.type === 'AGENT_LOG') console.log("AI状态更新: ", msg.log); 
   else if (msg.type === 'STATE_UPDATE') renderUI(msg.data);
   else if (msg.type === 'TASK_DONE') handleTaskDone(msg.data);
+  else if (msg.type === 'REPORT_UPDATE') window.DailyReport?.invalidate();
 };
 
 function escapeHtml(value) {

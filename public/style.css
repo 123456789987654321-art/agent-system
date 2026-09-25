@@ -1,10 +1,10 @@
 :root {
-  --bg-color: #e0f0ff;
+  --bg-color: #e9eff6;
   --panel-bg: #ffffff;
-  --text-main: #333333;
-  --text-sub: #666666;
-  --card-bg: #f8fafc;
-  --border-color: #edf2f7;
+  --text-main: #24364b;
+  --text-sub: #60748a;
+  --card-bg: #f5f8fc;
+  --border-color: #dce5ef;
 }
 body.dark-mode {
   --bg-color: #1a202c;
@@ -803,3 +803,79 @@ body.dark-mode .digital-human-card.agent-offline .avatar-online { background: rg
 .task-alert-bar { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; padding: 8px 10px; border-radius: 10px; border: 1px solid #ff5b5b; background: rgba(255, 91, 91, 0.08); font-size: 12px; }
 .task-alert-bar[hidden] { display: none; }
 .task-alert-text { flex: 1; color: var(--text-main); }
+
+
+/* Shared, unfilled line icons. Inherit text color in both themes. */
+.ui-icon {
+  display: inline-block; width: 1.15em; height: 1.15em; flex: 0 0 auto;
+  vertical-align: -0.18em; fill: none; stroke: currentColor; stroke-width: 1.7;
+  stroke-linecap: round; stroke-linejoin: round; pointer-events: none;
+}
+.nav-item .ui-icon { width: 21px; height: 21px; margin-right: 5px; }
+.card h3 > .ui-icon { margin-right: 5px; }
+.global-voice-close .ui-icon { width: 16px; height: 16px; vertical-align: middle; }
+.hourly-weather-icon, .daily-weather-icon { color: var(--text-sub); line-height: 1; }
+.hourly-weather-icon { margin: 8px 0; }
+.daily-weather-icon { margin: 12px 0; }
+.hourly-weather-icon .ui-icon { width: 26px; height: 26px; }
+.daily-weather-icon .ui-icon { width: 34px; height: 34px; }
+
+/* Light theme: layered cool surfaces and a subtle technical grid. */
+body:not(.dark-mode) {
+  background-image:
+    radial-gradient(ellipse at 3% 8%, rgba(100, 146, 210, 0.23), transparent 45%),
+    radial-gradient(ellipse at 98% 95%, rgba(89, 176, 188, 0.14), transparent 42%),
+    linear-gradient(rgba(82, 116, 154, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(82, 116, 154, 0.035) 1px, transparent 1px),
+    linear-gradient(135deg, #edf2f9, #e5edf5 48%, #eef4f6);
+  background-size: auto, auto, 48px 48px, 48px 48px, auto;
+}
+body:not(.dark-mode) .sidebar-block {
+  background: linear-gradient(175deg, #f9fcff 0%, #eaf1fa 58%, #dfeaf5 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.85), 0 12px 36px rgba(37, 67, 108, 0.09);
+}
+body:not(.dark-mode) .main-block {
+  background:
+    radial-gradient(ellipse at 100% 0%, rgba(220, 233, 249, 0.75), transparent 40%),
+    linear-gradient(150deg, rgba(255, 255, 255, 0.97), rgba(244, 248, 253, 0.96));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.9), 0 16px 46px rgba(37, 67, 108, 0.07);
+}
+body:not(.dark-mode) .nav-item { background: rgba(255, 255, 255, 0.46); }
+body:not(.dark-mode) .nav-item:hover { background: rgba(255, 255, 255, 0.85); }
+body:not(.dark-mode) .nav-item.active {
+  color: #225da6; border-color: #aac6e7;
+  background: linear-gradient(110deg, #dceafb, #f1f7ff);
+  box-shadow: inset 3px 0 0 #397bc3, 0 4px 12px rgba(42, 92, 150, 0.08);
+}
+body:not(.dark-mode) .sidebar-block .wake-btn {
+  background: linear-gradient(135deg, #347bc2, #22568f);
+  box-shadow: 0 5px 14px rgba(34, 86, 143, 0.18);
+}
+body:not(.dark-mode) .card {
+  background: linear-gradient(125deg, #fbfdff, #f0f5fb);
+  box-shadow: 0 5px 18px rgba(49, 76, 111, 0.04), inset 0 1px 0 #fff;
+}
+body:not(.dark-mode) .hourly-weather-card {
+  background: linear-gradient(120deg, #f0f6ff, #f7fbfe 58%, #edf6f7);
+}
+body:not(.dark-mode) .input-card { background: linear-gradient(110deg, #eef4fb, #f8fbff); }
+body:not(.dark-mode) .digital-human-card {
+  background:
+    radial-gradient(ellipse at 65% 25%, rgba(119, 165, 224, 0.17), transparent 52%),
+    linear-gradient(155deg, #f4f8ff, #e8f1fa 65%, #e7f2f3);
+}
+body:not(.dark-mode) .avatar-3d-wrapper {
+  background:
+    radial-gradient(ellipse at 50% 82%, rgba(70, 132, 199, 0.15), transparent 52%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(219, 233, 247, 0.54));
+}
+body:not(.dark-mode) .device-item,
+body:not(.dark-mode) .weather-card,
+body:not(.dark-mode) .hourly-item:not(.past),
+body:not(.dark-mode) .weather-metric {
+  background: linear-gradient(155deg, #fff, #f6f9fd);
+  box-shadow: 0 3px 10px rgba(37, 67, 108, 0.05), inset 0 0 0 1px rgba(213, 225, 239, 0.45);
+}
+body:not(.dark-mode) .setting-box { background: linear-gradient(110deg, #eaf1fa, #f4f8fd); }
+body:not(.dark-mode) .card h3 > .ui-icon,
+body:not(.dark-mode) .weather-icon { color: #476d98; }
