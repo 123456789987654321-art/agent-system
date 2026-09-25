@@ -781,7 +781,7 @@ body.dark-mode .hourly-item.past { background: #1e293b; border-color: #334155; o
 }
 body.dark-mode .digital-human-card.agent-offline .avatar-online { background: rgba(148, 163, 184, 0.16); }
 
-/* ==== 任务计时控制 与 数字人任务报告 ==== */
+/* ==== 任务计时控制 ==== */
 .task-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; justify-content: center; }
 .task-ctrl-btn {
   padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 12px;
@@ -792,111 +792,14 @@ body.dark-mode .digital-human-card.agent-offline .avatar-online { background: rg
 .task-ctrl-btn.is-danger { border-color: #e53e3e; color: #e53e3e; }
 .task-ctrl-btn.is-danger:hover { background: rgba(229, 62, 62, 0.08); }
 .avatar-head-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
-.task-report-btn {
-  display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; cursor: pointer;
-  border-radius: 999px; font-size: 11px; font-weight: bold;
-  color: var(--text-sub); background: var(--panel-bg); border: 1px solid var(--border-color);
-}
-.task-report-btn:hover { border-color: #007bff; color: #007bff; }
-.task-report-count {
-  display: inline-flex; min-width: 16px; height: 16px; align-items: center; justify-content: center;
-  padding: 0 4px; border-radius: 999px; background: #ff5b5b; color: #ffffff; font-size: 10px;
-}
-.task-report-count[hidden] { display: none; }
-.task-report-panel {
-  position: relative; z-index: 6; margin: 10px 0 4px; padding: 12px;
-  border: 1px solid var(--border-color); border-radius: 12px;
-  background: var(--panel-bg); box-shadow: 0 8px 20px rgba(0, 55, 105, 0.08);
-}
-.task-report-panel[hidden] { display: none; }
-.task-report-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
-.task-report-read-all {
+.task-alert-action {
   padding: 4px 8px; border-radius: 8px; cursor: pointer; font-size: 11px;
   border: 1px solid var(--border-color); background: transparent; color: var(--text-sub);
 }
-.task-report-list { display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; }
-.task-report-item {
-  padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border-color);
-  background: rgba(0, 123, 255, 0.04); font-size: 12px;
-}
-.task-report-item.is-unread { border-color: #ff5b5b; background: rgba(255, 91, 91, 0.06); }
-.task-report-meta { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; color: var(--text-sub); font-size: 11px; }
-.task-report-item p { margin: 0 0 6px; color: var(--text-main); }
-.task-report-read {
-  padding: 3px 10px; border-radius: 999px; cursor: pointer; font-size: 11px;
-  border: 1px solid #007bff; background: transparent; color: #007bff;
-}
-.task-report-empty { margin: 0; color: var(--text-sub); font-size: 12px; }
 
 /* 任务控制按钮分组：同组内不换行，整组一起换行 */
 .task-ctrl-group { display: inline-flex; flex-wrap: nowrap; align-items: center; gap: 8px; }
 
-/* 每日报与任务报切换 */
-.task-report-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
-.task-report-tab {
-  padding: 5px 12px; border-radius: 999px; cursor: pointer; font-size: 12px;
-  border: 1px solid var(--border-color); background: transparent; color: var(--text-sub);
-}
-.task-report-tab.is-active { border-color: #007bff; color: #007bff; background: rgba(0, 123, 255, 0.08); font-weight: bold; }
-.daily-report-actions { display: flex; gap: 8px; margin-bottom: 10px; }
-.daily-report-list { display: flex; flex-direction: column; gap: 10px; max-height: 280px; overflow-y: auto; }
-.daily-report-item { padding: 10px; border: 1px solid var(--border-color); border-radius: 10px; background: rgba(0, 123, 255, 0.04); font-size: 12px; }
-.daily-report-title { display: flex; align-items: center; justify-content: space-between; font-weight: bold; margin-bottom: 8px; }
-.daily-report-title span { color: var(--text-sub); font-weight: normal; font-size: 11px; }
-.daily-report-section { margin-bottom: 6px; }
-.daily-report-section strong { display: block; color: var(--text-sub); font-size: 11px; margin-bottom: 3px; }
-.daily-report-section p { margin: 0; color: var(--text-main); }
-.daily-report-section ul { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; }
-.daily-report-section li { display: flex; justify-content: space-between; gap: 8px; color: var(--text-main); }
-.daily-report-section li span { color: var(--text-sub); }
-.daily-report-none { color: var(--text-sub); }
-
-/* 报告精简版样式 */
-.report-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--panel-bg); font-size: 12px; }
-.report-time { color: var(--text-sub); }
-.report-name { flex: 1; color: var(--text-main); }
-.report-mini-btn { padding: 2px 9px; border-radius: 999px; border: 1px solid #007bff; background: transparent; color: #007bff; font-size: 11px; cursor: pointer; }
-.report-chip { display: inline-flex; align-items: center; padding: 1px 7px; border-radius: 999px; font-size: 10px; background: rgba(0, 123, 255, 0.1); color: #007bff; }
-.report-chip.is-unread { background: rgba(255, 91, 91, 0.14); color: #e53e3e; }
-.report-chip.is-read { background: rgba(148, 163, 184, 0.18); color: var(--text-sub); }
-.daily-report-item { cursor: pointer; padding: 8px 10px; }
-.daily-report-item.is-open { border-color: #007bff; }
-.daily-report-summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
-.daily-weather { color: var(--text-sub); }
-.daily-report-detail { margin-top: 8px; display: flex; flex-direction: column; gap: 5px; }
-.daily-line { display: flex; gap: 8px; align-items: flex-start; }
-.daily-line > span { flex: 0 0 44px; color: var(--text-sub); font-size: 11px; }
-.daily-line > div { display: flex; flex-wrap: wrap; gap: 6px; color: var(--text-main); }
-.daily-task { padding: 1px 6px; border-radius: 6px; background: rgba(0, 123, 255, 0.06); }
-.daily-none { color: var(--text-sub); }
-
-.daily-report-taskline { margin-top: 6px; color: var(--text-main); }
-
 .task-alert-bar { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; padding: 8px 10px; border-radius: 10px; border: 1px solid #ff5b5b; background: rgba(255, 91, 91, 0.08); font-size: 12px; }
 .task-alert-bar[hidden] { display: none; }
 .task-alert-text { flex: 1; color: var(--text-main); }
-
-/* 报告页面：任务报与每日报左右分栏 */
-.report-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
-.report-column { display: flex; flex-direction: column; gap: 10px; }
-.report-column h3 { margin: 0; }
-.report-column-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-@media (max-width: 900px) { .report-columns { grid-template-columns: 1fr; } }
-
-/* 报告放大查看弹层 */
-.report-modal { position: fixed; inset: 0; z-index: 999; display: flex; align-items: center; justify-content: center; }
-.report-modal[hidden] { display: none; }
-.report-modal-mask { position: absolute; inset: 0; background: rgba(15, 25, 40, 0.45); }
-.report-modal-panel { position: relative; z-index: 1; display: flex; flex-direction: column; width: min(920px, 90vw); max-height: 82vh; overflow: hidden; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 24px 60px rgba(0, 40, 90, 0.28); }
-.report-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border-color); }
-.report-modal-head strong { font-size: 16px; }
-.report-modal-close { border: none; background: transparent; font-size: 22px; line-height: 1; cursor: pointer; color: var(--text-sub); }
-.report-modal-body { padding: 16px 18px; overflow-y: auto; }
-.report-modal-body .task-report-list, .report-modal-body .daily-report-list { max-height: none; }
-.report-modal-body .report-time { font-size: 14px; }
-.report-modal-body .report-name { font-size: 15px; }
-.report-modal-body .report-chip { font-size: 12px; padding: 3px 10px; }
-.report-modal-body .report-mini-btn, .report-modal-body .task-report-read { font-size: 13px; padding: 4px 12px; }
-.report-modal-body .daily-report-item { font-size: 14px; padding: 12px 14px; }
-.report-modal-body .daily-report-taskline { font-size: 14px; margin-top: 8px; }
-.report-modal-body .daily-report-title { font-size: 15px; }

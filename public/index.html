@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>居家管理辅助控制系统</title>
-  <link rel="stylesheet" href="style.css?v=20260925-weather-only">
+  <link rel="stylesheet" href="style.css?v=20260925-no-reports">
   <!-- 引入谷歌 3D 渲染引擎 -->
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
   <!-- 引入 Chart.js 用于绘制折线图 -->
@@ -17,7 +17,6 @@
         <div class="nav-item active" onclick="switchPage('overview', this)">🏠 总览</div>
         <div class="nav-item" onclick="switchPage('appliances', this)">📺 家电</div>
         <div class="nav-item" onclick="switchPage('weather', this)">🌤️ 天气</div>
-        <div class="nav-item" id="navReports" onclick="switchPage('reports', this)">📋 报告</div>
         <div class="nav-item" onclick="switchPage('settings', this)">⚙️ 设置</div>
       </div>
       <button class="wake-btn" onclick="summonButler()">🎙 呼唤管家</button>
@@ -97,8 +96,8 @@
             <div class="avatar-container">
               <div class="task-alert-bar" id="taskAlertBar" hidden>
                 <span class="task-alert-text" id="taskAlertText"></span>
-                <button type="button" class="task-report-read-all" onclick="speakPendingAlert()">🔊 播报</button>
-                <button type="button" class="task-report-read-all" onclick="dismissPendingAlert()">忽略</button>
+                <button type="button" class="task-alert-action" onclick="speakPendingAlert()">🔊 播报</button>
+                <button type="button" class="task-alert-action" onclick="dismissPendingAlert()">忽略</button>
               </div>
               <div class="avatar-3d-wrapper" id="avatarStage">
                 <div class="avatar-grid"></div>
@@ -366,30 +365,6 @@
         </div>
       </div>
 
-      <!-- 页面 5：报告 -->
-      <div id="page-reports" class="page-view">
-        <div class="report-columns">
-          <div class="card report-column">
-            <h3>任务报</h3>
-            <div class="report-column-actions">
-              <button type="button" class="task-report-read-all" onclick="speakReport('task')">🔊 让数字人阅读任务报</button>
-              <button type="button" class="task-report-read-all" onclick="markAllReportsRead()">✓ 全部已读</button>
-              <button type="button" class="task-report-read-all" onclick="openReportModal('task')">🔍 放大查看</button>
-            </div>
-            <div class="task-report-list" id="taskReportList"></div>
-          </div>
-          <div class="card report-column">
-            <h3>每日报</h3>
-            <div class="report-column-actions">
-              <button type="button" class="task-report-read-all" onclick="speakReport('daily')">🔊 让数字人阅读每日报</button>
-              <button type="button" class="task-report-read-all" onclick="clearDailyReports()">清除每日报</button>
-              <button type="button" class="task-report-read-all" onclick="downloadDailyReports()">下载到本地</button>
-              <button type="button" class="task-report-read-all" onclick="openReportModal('daily')">🔍 放大查看</button>
-            </div>
-            <div class="daily-report-list" id="dailyReportList"><p class="task-report-empty">加载中...</p></div>
-          </div>
-        </div>
-      </div>
     </main>
   </div>
 
@@ -402,16 +377,6 @@
     <button type="button" class="global-voice-close" onclick="hideGlobalVoiceStatus(true)" aria-label="关闭语音状态">×</button>
   </div>
 
-  <div class="report-modal" id="reportModal" hidden>
-    <div class="report-modal-mask" onclick="closeReportModal()"></div>
-    <div class="report-modal-panel">
-      <div class="report-modal-head">
-        <strong id="reportModalTitle">报告</strong>
-        <button type="button" class="report-modal-close" onclick="closeReportModal()" aria-label="关闭">×</button>
-      </div>
-      <div class="report-modal-body" id="reportModalBody"></div>
-    </div>
-  </div>
-  <script src="app.js?v=20260925-weather-only"></script>
+  <script src="app.js?v=20260925-no-reports"></script>
 </body>
 </html>

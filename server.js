@@ -49,9 +49,7 @@ let homeState = {
   personHome: false,
   devices: Object.fromEntries(DEVICE_DEFINITIONS.map(device => [device.key, '关闭'])),
   activeTask: null,
-  pendingTasks: [],
-  reports: [],
-  location: null
+  pendingTasks: []
 };
 
 // 任务心跳检测
@@ -85,195 +83,19 @@ function broadcastTaskDone(task, text) {
   return sent;
 }
 
-function addReport(task, text) {
-  homeState.reports.unshift({
-    id: task.id + '-r',
-    name: task.name,
-    reminder: task.reminder === true,
-    detail: text,
-    text: '你有一项任务没有按时完成：' + task.name,
-    missedAt: Date.now(),
-    read: false
-  });
-  homeState.reports = homeState.reports.slice(0, 20);
-  broadcastLog('[任务报告]：' + task.name + ' 在无人查看时结束，已存入报告');
-}
-
 function finishTask(task) {
   if (!task) return;
   const text = task.reminder ? '现在要去' + task.name + '了' : task.name + '任务已完成';
-  recordTaskEnd(task);
   homeState.activeTask = null;
   broadcastLog('[任务完成]：' + task.name + ' 结束');
-  const delivered = broadcastTaskDone(task, text);
-  if (!delivered) addReport(task, text);
+  broadcastTaskDone(task, text);
   broadcastState();
 }
 
-// ==== 每日报：记录任务时间段与家电开启次数，每天 0 点汇总前一天 ====
-const DAILY_REPORT_KEEP_DAYS = 7;
-const WEATHER_CODE_TEXT = {
-  0: '晴朗', 1: '多云', 2: '多云', 3: '阴天', 45: '有雾', 48: '有雾',
-  51: '毛毛雨', 53: '毛毛雨', 55: '毛毛雨', 56: '毛毛雨', 57: '毛毛雨',
-  61: '下雨', 63: '下雨', 65: '下雨', 66: '冻雨', 67: '冻雨',
-  71: '下雪', 73: '下雪', 75: '下雪', 77: '下雪',
-  80: '下雨', 81: '下雨', 82: '下雨', 85: '下雪', 86: '下雪',
-  95: '雷雨', 96: '雷雨', 99: '雷雨'
-};
-let dailyBuckets = {};
-// 内置一份示例每日报（9 月 22 日），服务启动即存在，不依赖任何演示接口
-const SEED_DAILY_REPORTS = [
-  {
-    date: '2026-09-22',
-    label: '2026年9月22日',
-    tasks: [
-      { id: 'seed-2026-09-22-1', name: '洗衣服', reminder: false, advancedSeconds: 600, delayedSeconds: 0, startTime: '09:21', endTime: '09:38', done: true },
-      { id: 'seed-2026-09-22-2', name: '整理房间', reminder: false, advancedSeconds: 0, delayedSeconds: 300, startTime: '14:35', endTime: '15:01', done: true },
-      { id: 'seed-2026-09-22-3', name: '扫地', reminder: false, advancedSeconds: 0, delayedSeconds: 0, startTime: '17:10', endTime: '17:38', done: true }
-    ],
-    devices: [
-      { key: 'light_living', name: '客厅灯', count: 4 },
-      { key: 'washer', name: '洗衣机', count: 2 },
-      { key: 'ac', name: '空调', count: 1 }
-    ],
-    weather: { code: 3, text: '阴天', max: 29, min: 21 },
-    seed: true
-  }
-];
-let dailyReports = SEED_DAILY_REPORTS.slice();
-let lastDailyCheck = '';
-
-function dateKeyOf(date) {
-  const target = date || new Date();
-  return target.getFullYear() + '-' + String(target.getMonth() + 1).padStart(2, '0') + '-' + String(target.getDate()).padStart(2, '0');
-}
-
-function currentBucket() {
-  const key = dateKeyOf();
-  if (!dailyBuckets[key]) dailyBuckets[key] = { tasks: [], devices: {} };
-  return dailyBuckets[key];
-}
-
-// 统一的设备状态写入：开启时计入当天的开启次数
+// 统一写入设备状态。
 function applyDeviceState(deviceKey, state) {
-  const previous = homeState.devices[deviceKey];
   homeState.devices[deviceKey] = state;
-  if (state === '开启' && previous !== '开启') {
-    const bucket = currentBucket();
-    bucket.devices[deviceKey] = (bucket.devices[deviceKey] || 0) + 1;
-  }
 }
-
-function recordTaskStart(task) {
-  if (!task) return;
-  const bucket = currentBucket();
-  bucket.tasks.push({
-    id: task.id,
-    name: task.name,
-    reminder: task.reminder === true,
-    advancedSeconds: task.advancedSeconds || 0,
-    delayedSeconds: task.delayedSeconds || 0,
-    startTime: formatClock(new Date()),
-    endTime: '',
-    done: false
-  });
-}
-
-function recordTaskEnd(task) {
-  if (!task) return;
-  const bucket = currentBucket();
-  let entry = bucket.tasks.find(item => item.id === task.id);
-  if (!entry) {
-    entry = { id: task.id, name: task.name, reminder: task.reminder === true, startTime: task.startTime || '', endTime: '', done: false };
-    bucket.tasks.push(entry);
-  }
-  entry.endTime = formatClock(new Date());
-  entry.done = true;
-}
-// 记录任务被提前或延后了多少（用于每日报）
-function currentTaskEntry(taskId) {
-  const bucket = dailyBuckets[dateKeyOf()];
-  if (!bucket) return null;
-  return bucket.tasks.find(item => item.id === taskId) || null;
-}
-
-function addTaskAdjustment(task, type, seconds) {
-  const value = Math.max(0, Math.round(Number(seconds) || 0));
-  if (!task || !value) return;
-  if (type === 'advance') task.advancedSeconds = (task.advancedSeconds || 0) + value;
-  else task.delayedSeconds = (task.delayedSeconds || 0) + value;
-  const entry = currentTaskEntry(task.id);
-  if (entry) {
-    entry.advancedSeconds = task.advancedSeconds || 0;
-    entry.delayedSeconds = task.delayedSeconds || 0;
-  }
-}
-
-
-function buildDailyReport(dateKey, bucket) {
-  const parts = dateKey.split('-');
-  const deviceCounts = DEVICE_DEFINITIONS
-    .filter(device => bucket.devices[device.key])
-    .map(device => ({ key: device.key, name: device.name, count: bucket.devices[device.key] }))
-    .sort((a, b) => b.count - a.count);
-  return {
-    date: dateKey,
-    label: parts[0] + '年' + Number(parts[1]) + '月' + Number(parts[2]) + '日',
-    tasks: bucket.tasks,
-    devices: deviceCounts,
-    weather: bucket.weather || null
-  };
-}
-
-async function fetchDailyWeather(dateKey) {
-  const location = homeState.location;
-  if (!location) return null;
-  try {
-    const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + location.lat + '&longitude=' + location.lon
-      + '&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Asia%2FShanghai&past_days=7&forecast_days=1';
-    const response = await axios.get(url, { timeout: 8000 });
-    const daily = response.data && response.data.daily;
-    if (!daily || !Array.isArray(daily.time)) return null;
-    const index = daily.time.indexOf(dateKey);
-    if (index < 0) return null;
-    const code = Number(daily.weathercode[index]);
-    return {
-      code: code,
-      text: WEATHER_CODE_TEXT[code] || '未知',
-      max: daily.temperature_2m_max[index],
-      min: daily.temperature_2m_min[index]
-    };
-  } catch (error) {
-    broadcastLog('[每日报]：天气获取失败 ' + error.message);
-    return null;
-  }
-}
-
-async function finalizeDay(dateKey) {
-  if (dailyReports.some(report => report.date === dateKey)) return;
-  const bucket = dailyBuckets[dateKey];
-  if (!bucket || bucket.finalizing) return;
-  bucket.finalizing = true;
-  bucket.weather = await fetchDailyWeather(dateKey);
-  const report = buildDailyReport(dateKey, bucket);
-  dailyReports.unshift(report);
-  dailyReports = dailyReports.slice(0, DAILY_REPORT_KEEP_DAYS);
-  delete dailyBuckets[dateKey];
-  broadcastLog('[每日报]：' + report.label + ' 已生成，任务 ' + report.tasks.length + ' 条，家电 ' + report.devices.length + ' 种');
-  broadcastState();
-}
-
-async function ensureDailyReports() {
-  const today = dateKeyOf();
-  if (lastDailyCheck === today) return;
-  const pastKeys = Object.keys(dailyBuckets).filter(key => key < today);
-  for (const key of pastKeys) {
-    await finalizeDay(key);
-  }
-  lastDailyCheck = today;
-}
-
-setInterval(() => { ensureDailyReports(); }, 60000);
 
 function normalizeCommandText(text) {
   return String(text || '')
@@ -472,7 +294,6 @@ function makeTask(action) {
 
 function activateTask(task) {
   const startedAt = new Date();
-  recordTaskStart(task);
   homeState.activeTask = {
     ...task,
     startedAt: startedAt.getTime(),
@@ -670,16 +491,13 @@ app.post('/api/task_control', (req, res) => {
     if (!homeState.pendingTasks.length) return res.status(400).json({ error: '没有等待中的任务' });
     homeState.pendingTasks.sort((a, b) => a.scheduledAt - b.scheduledAt);
     const nextTask = homeState.pendingTasks.shift();
-    const originalAt = nextTask.scheduledAt;
     if (task) {
       nextTask.executeMode = 'scheduled';
       nextTask.scheduledAt = Date.now() + task.remaining * 1000 + 1000;
       nextTask.scheduledTime = formatClock(new Date(nextTask.scheduledAt));
-      addTaskAdjustment(nextTask, 'advance', Math.max(0, Math.round((originalAt - nextTask.scheduledAt) / 1000)));
       homeState.pendingTasks.unshift(nextTask);
       message = '已把下一个任务提前到当前任务结束后立即开始：' + nextTask.name;
     } else {
-      addTaskAdjustment(nextTask, 'advance', Math.max(0, Math.round((originalAt - Date.now()) / 1000)));
       activateTask(nextTask);
       message = '已提前开始下一个任务：' + nextTask.name;
     }
@@ -698,20 +516,17 @@ app.post('/api/task_control', (req, res) => {
     message = '已继续' + task.name + '的倒计时';
   } else if (action === 'cancel') {
     message = '已取消当前任务：' + task.name;
-    recordTaskEnd(task);
     homeState.activeTask = null;
   } else if (action === 'extend') {
     if (!amountSeconds) return res.status(400).json({ error: '请说明要延长多长时间' });
     task.totalSeconds += amountSeconds;
     task.remaining += amountSeconds;
     task.endTime = formatClock(new Date(Date.now() + task.remaining * 1000));
-    addTaskAdjustment(task, 'delay', amountSeconds);
     message = '已把' + task.name + '延长' + formatDuration(amountSeconds);
   } else if (action === 'advance') {
     if (!amountSeconds) return res.status(400).json({ error: '请说明要提前多长时间' });
     task.totalSeconds = Math.max(1, task.totalSeconds - amountSeconds);
     task.remaining = task.remaining - amountSeconds;
-    addTaskAdjustment(task, 'advance', amountSeconds);
     message = '已把' + task.name + '提前' + formatDuration(amountSeconds);
     if (task.remaining <= 0) finishTask(task);
   } else {
@@ -723,15 +538,6 @@ app.post('/api/task_control', (req, res) => {
   res.json({ success: true, message: message, task: homeState.activeTask });
 });
 
-// 数字人旁边的任务报告：标记已读
-app.post('/api/report_read', (req, res) => {
-  const { id, all } = req.body || {};
-  homeState.reports.forEach(report => {
-    if (all || report.id === id) report.read = true;
-  });
-  broadcastState();
-  res.json({ success: true, reports: homeState.reports });
-});
 // 同站点地址解析，避免要求访问者的浏览器直接连接外部地理服务。
 app.get('/api/location/address', async (req, res) => {
   res.set('Cache-Control', 'no-store');
@@ -749,32 +555,6 @@ app.get('/api/location/address', async (req, res) => {
   }
 });
 
-// 浏览器把定位同步给服务端，用于生成每日报里的天气
-app.post('/api/location', (req, res) => {
-  const { lat, lon, source } = req.body || {};
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)
-    || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
-    return res.status(400).json({ success: false, error: '无效的定位坐标' });
-  }
-  homeState.location = {
-    lat, lon, source: source === 'ip' ? 'ip' : 'browser', updatedAt: Date.now()
-  };
-  res.json({ success: true });
-});
-
-// 每日报：读取与清除（下载在前端直接导出文件）
-app.get('/api/daily_reports', async (req, res) => {
-  await ensureDailyReports();
-  res.json({ success: true, reports: dailyReports });
-});
-
-app.post('/api/daily_report_clear', (req, res) => {
-  const { date, all } = req.body || {};
-  if (all) dailyReports = [];
-  else dailyReports = dailyReports.filter(report => report.date !== date);
-  broadcastState();
-  res.json({ success: true, reports: dailyReports });
-});
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });

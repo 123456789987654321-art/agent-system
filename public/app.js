@@ -150,7 +150,6 @@ async function initLocationAndWeather() {
     todayWeatherSnapshot = null;
     resetWeatherDisplay('正在获取当前位置的天气…');
     // 天气仅使用坐标，不再查询或展示地址信息。
-    reportLocation();
     fetchHourlyWeather();
     fetchWeather();
   } catch (error) {
@@ -266,12 +265,6 @@ function switchPage(pageId, element) {
   document.getElementById(`page-${pageId}`).classList.add('active');
   if (element) element.classList.add('active');
   if (pageId === 'weather') fetchWeather();
-  if (pageId === 'reports') loadDailyReports();
-}
-
-// 数字人卡片上的报告键：直接跳到报告页面
-function openReportsPage() {
-  switchPage('reports', document.getElementById('navReports'));
 }
 
 function toggleTheme() { document.body.classList.toggle('dark-mode'); }
@@ -440,8 +433,6 @@ function dismissPendingAlert() {
 }
 
 // ==== 倒计时框控制：暂停 / 继续 / 清除 / 延长 / 提前 ====
-let pendingReports = [];
-let missedReportsAnnounced = false;
 
 function parseTaskControlCommand(text) {
   const compact = String(text || '').replace(/\s+/g, '');
@@ -476,347 +467,6 @@ async function controlTask(action, seconds) {
   }
 }
 
-// ==== 数字人任务报告 ====
-function toggleReportPanel() {
-  const panel = document.getElementById('taskReportPanel');
-  const btn = document.getElementById('taskReportBtn');
-  if (!panel) return;
-  panel.hidden = !panel.hidden;
-  if (btn) btn.setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
-  if (!panel.hidden) switchReportTab('task');
-}
-
-async function markReportRead(id) {
-  try {
-    await fetch('/api/report_read', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: id })
-    });
-  } catch (error) {
-    console.warn('报告已读失败', error);
-  }
-}
-
-async function markAllReportsRead() {
-  try {
-    await fetch('/api/report_read', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ all: true })
-    });
-  } catch (error) {
-    console.warn('报告已读失败', error);
-  }
-}
-
-// 把浏览器定位同步给服务端，供每日报的天气使用
-function reportLocation() {
-  if (!validCoordinates(myLat, myLon)) return;
-  fetch('/api/location', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ lat: myLat, lon: myLon, source: currentLocation?.source, updatedAt: currentLocation?.updatedAt })
-  }).catch(() => undefined);
-}
-
-// ==== 报告分支：任务报 / 每日报 ====
-let dailyReportCache = [];
-let taskReportCache = [];
-
-function switchReportTab(tab) {
-  const isDaily = tab === 'daily';
-  const taskBody = document.getElementById('reportBodyTask');
-  const dailyBody = document.getElementById('reportBodyDaily');
-  const taskTab = document.getElementById('reportTabTask');
-  const dailyTab = document.getElementById('reportTabDaily');
-  if (taskBody) taskBody.hidden = isDaily;
-  if (dailyBody) dailyBody.hidden = !isDaily;
-  if (taskTab) taskTab.classList.toggle('is-active', !isDaily);
-  if (dailyTab) dailyTab.classList.toggle('is-active', isDaily);
-  if (isDaily) loadDailyReports();
-}
-
-async function loadDailyReports() {
-  const listEl = document.getElementById('dailyReportList');
-  try {
-    const res = await fetch('/api/daily_reports');
-    const data = await res.json();
-    dailyReportCache = Array.isArray(data.reports) ? data.reports : [];
-    renderDailyReports(dailyReportCache);
-  } catch (error) {
-    if (listEl) listEl.innerHTML = '<p class=\'task-report-empty\'>每日报加载失败</p>';
-  }
-}
-
-function dailyWeatherText(report) {
-  if (!report || !report.weather) return '无天气数据';
-  const min = Math.round(report.weather.min);
-  const max = Math.round(report.weather.max);
-  return report.weather.text + '，气温 ' + min + ' 到 ' + max + ' 摄氏度';
-}
-
-
-
-function renderDailyReports(reports) {
-  const listEl = document.getElementById('dailyReportList');
-  if (!listEl) return;
-  if (!reports.length) {
-    listEl.innerHTML = '<p class=\'task-report-empty\'>暂无每日报，每天 0 点自动汇总前一天</p>';
-    return;
-  }
-
-  listEl.innerHTML = reports.map(report => {
-    const info = getWeatherInfo(report.weather ? report.weather.code : -1);
-    const temp = report.weather ? Math.round(report.weather.min) + '~' + Math.round(report.weather.max) + '℃' : '--';
-    const tasks = report.tasks || [];
-    const devices = report.devices || [];
-    const deviceTotal = devices.reduce((sum, device) => sum + device.count, 0);
-    const shown = tasks.slice(0, 4);
-    const more = tasks.length > shown.length ? ' 等 ' + tasks.length + ' 项' : '';
-    const taskText = shown.length
-      ? shown.map(task => (task.startTime || '') + ' ' + escapeHtml(task.name) + taskAdjustText(task)).join(' · ') + more
-      : '这天没有任务记录';
-    return '<div class=\'daily-report-item\'>'
-      + '<div class=\'daily-report-summary\'>'
-      + '<strong>' + escapeHtml(shortDayLabel(report)) + '</strong>'
-      + '<span class=\'daily-weather\'>' + info.icon + ' ' + info.text + ' ' + temp + '</span>'
-      + '<span class=\'report-chip\'>家电 ' + deviceTotal + ' 次</span>'
-      + '</div>'
-      + '<div class=\'daily-report-taskline\'>' + taskText + '</div>'
-      + '</div>';
-  }).join('');
-  refreshReportModal('daily');
-}
-
-async function clearDailyReports() {
-  try {
-    const res = await fetch('/api/daily_report_clear', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ all: true })
-    });
-    const data = await res.json();
-    dailyReportCache = Array.isArray(data.reports) ? data.reports : [];
-    renderDailyReports(dailyReportCache);
-  } catch (error) {
-    console.warn('清除每日报失败', error);
-  }
-}
-
-function downloadDailyReports() {
-  if (!dailyReportCache.length) {
-    showGlobalVoiceStatus('每日报', '还没有可下载的每日报。', 'idle');
-    return;
-  }
-  const lines = ['每日报导出（共 ' + dailyReportCache.length + ' 天）', ''];
-  dailyReportCache.forEach(report => {
-    lines.push(report.label + '（' + report.date + '）');
-    lines.push('天气：' + dailyWeatherText(report));
-    lines.push('做的事：');
-    if (report.tasks && report.tasks.length) {
-      report.tasks.forEach(task => {
-        lines.push('  ' + (task.startTime || '--:--') + (task.endTime ? ' - ' + task.endTime : '') + ' ' + task.name + ' ' + taskAdjustText(task));
-      });
-    } else {
-      lines.push('  无');
-    }
-    lines.push('家电开启次数：');
-    if (report.devices && report.devices.length) {
-      report.devices.forEach(device => {
-        lines.push('  ' + device.name + '：' + device.count + ' 次');
-      });
-    } else {
-      lines.push('  无');
-    }
-    lines.push('');
-  });
-  const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = '每日报_' + new Date().toISOString().slice(0, 10) + '.txt';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
-// 让数字人朗读报告（按钮与语音共用）
-function speakTaskReport() {
-  if (!taskReportCache.length) {
-    agentSpeak('今天的任务报里还没有记录。');
-    return;
-  }
-  const items = taskReportCache.map(report => {
-    const time = new Date(report.missedAt).toLocaleTimeString().slice(0, 5);
-    return spokenClock(time) + '，' + report.name;
-  });
-  if (items.length === 1) {
-    agentSpeak('今天的任务报有 1 条：' + items[0] + '。');
-    return;
-  }
-  const numbered = items.map((item, index) => '第' + (index + 1) + '条，' + item).join('；');
-  agentSpeak('今天的任务报一共 ' + items.length + ' 条：' + numbered + '。');
-}
-
-function speakDailyReport() {
-  if (!dailyReportCache.length) {
-    agentSpeak('还没有可以播报的每日报，每天零点我会自动汇总前一天的情况。');
-    return;
-  }
-  const report = dailyReportCache[0];
-  const tasks = report.tasks || [];
-  const parts = ['现在播报' + (report.label || report.date) + '的每日报。'];
-  parts.push(dailyWeatherText(report) + '。');
-  if (tasks.length) {
-    const names = tasks.slice(0, 4).map(task => task.name || '').filter(Boolean).join('、');
-    parts.push('这天做了 ' + tasks.length + ' 件事：' + names + (tasks.length > 4 ? ' 等' : '') + '。');
-  } else {
-    parts.push('这天没有任务记录。');
-  }
-  const devices = report.devices || [];
-  if (devices.length) {
-    const total = devices.reduce((sum, device) => sum + device.count, 0);
-    parts.push('家电一共开了 ' + total + ' 次。');
-  }
-  agentSpeak(parts.join(''));
-}
-
-async function speakReport(kind) {
-  if (kind === 'alert') {
-    speakPendingAlert();
-    return;
-  }
-  if (kind === 'daily') {
-    if (!dailyReportCache.length) await loadDailyReports();
-    speakDailyReport();
-  } else {
-    speakTaskReport();
-  }
-}
-
-function parseReportVoiceCommand(text) {
-  const compact = String(text || '').replace(/\s+/g, '');
-  if (!/(念|读|播报|朗读|阅读|说一下|讲讲|听一下)/.test(compact)) return null;
-  if (/提醒/.test(compact)) return { kind: 'alert' };
-  if (/每日报|日报/.test(compact)) return { kind: 'daily' };
-  if (/任务报|任务报告|报告/.test(compact)) return { kind: 'task' };
-  return null;
-}
-
-function spokenClock(value) {
-  const parts = String(value || '').split(':');
-  if (parts.length < 2) return String(value || '');
-  return Number(parts[0]) + '点' + parts[1] + '分';
-}
-
-function shortDuration(seconds) {
-  const value = Math.max(0, Math.round(Number(seconds) || 0));
-  if (value >= 3600 && value % 3600 === 0) return (value / 3600) + '小时';
-  if (value >= 60 && value % 60 === 0) return (value / 60) + '分钟';
-  if (value >= 60) return Math.floor(value / 60) + '分' + (value % 60) + '秒';
-  return value + '秒';
-}
-
-function taskAdjustText(task) {
-  const parts = [];
-  if (task && task.advancedSeconds > 0) parts.push('提前 ' + shortDuration(task.advancedSeconds));
-  if (task && task.delayedSeconds > 0) parts.push('延后 ' + shortDuration(task.delayedSeconds));
-  return parts.length ? '（' + parts.join('、') + '）' : '';
-}
-
-function shortDayLabel(report) {
-  const parts = String((report && report.date) || '').split('-');
-  if (parts.length < 3) return (report && (report.label || report.date)) || '';
-  const date = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-  const week = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][date.getDay()] || '';
-  return Number(parts[1]) + '月' + Number(parts[2]) + '日 ' + week;
-}
-
-// ==== 报告放大查看 ====
-function reportModalSourceHtml(kind) {
-  const source = document.getElementById(kind === 'daily' ? 'dailyReportList' : 'taskReportList');
-  if (!source) return '';
-  const empty = kind === 'daily' ? '暂无每日报' : '今天还没有任务记录';
-  const html = String(source.innerHTML || '').trim();
-  return html || '<p class=\'task-report-empty\'>' + empty + '</p>';
-}
-
-function openReportModal(kind) {
-  const modal = document.getElementById('reportModal');
-  const title = document.getElementById('reportModalTitle');
-  const body = document.getElementById('reportModalBody');
-  if (!modal || !body) return;
-  modal.dataset.kind = kind;
-  if (title) title.innerText = kind === 'daily' ? '每日报' : '任务报';
-  body.innerHTML = reportModalSourceHtml(kind);
-  modal.hidden = false;
-}
-
-function refreshReportModal(kind) {
-  const modal = document.getElementById('reportModal');
-  const body = document.getElementById('reportModalBody');
-  if (!modal || !body || modal.hidden) return;
-  if (modal.dataset.kind !== kind) return;
-  body.innerHTML = reportModalSourceHtml(kind);
-}
-
-function closeReportModal() {
-  const modal = document.getElementById('reportModal');
-  if (modal) modal.hidden = true;
-}
-
-document.addEventListener('keydown', function (event) {
-  if (event && event.key === 'Escape') closeReportModal();
-});
-
-function renderTaskReports(reports) {
-  const countBadge = document.getElementById('taskReportCount');
-  const listEl = document.getElementById('taskReportList');
-  const unread = reports.filter(report => !report.read);
-  pendingReports = unread;
-  taskReportCache = reports;
-
-  if (countBadge) {
-    countBadge.hidden = unread.length === 0;
-    countBadge.innerText = String(unread.length);
-  }
-
-  if (listEl) {
-    listEl.onclick = function (event) {
-      const target = event.target;
-      const reportId = target && target.getAttribute ? target.getAttribute('data-report-id') : null;
-      if (reportId) markReportRead(reportId);
-    };
-
-    if (!reports.length) {
-      listEl.innerHTML = '<p class=\'task-report-empty\'>今天还没有任务记录</p>';
-    } else {
-      listEl.innerHTML = reports.map(report => {
-        const time = new Date(report.missedAt).toLocaleTimeString().slice(0, 5);
-        const chip = report.read
-          ? '<span class=\'report-chip is-read\'>已读</span>'
-          : '<span class=\'report-chip is-unread\'>未读</span>';
-        const button = report.read ? '' : '<button type=\'button\' class=\'report-mini-btn\' data-report-id=\'' + report.id + '\'>阅读</button>';
-        return '<div class=\'report-row\'>'
-          + '<span class=\'report-time\'>' + time + '</span>'
-          + '<span class=\'report-name\'>' + escapeHtml(report.name) + '</span>'
-          + chip + button
-          + '</div>';
-      }).join('');
-    }
-  }
-
-  announceMissedReports();
-  refreshReportModal('task');
-}
-
-function announceMissedReports() {
-  // 不自动播报：未读记录只用角标提示，需要用户点阅读或说念任务报时才播报
-  missedReportsAnnounced = pendingReports.length > 0;
-}
-
 async function sendVoiceCommand() {
   const text = document.getElementById('userInput').value;
   if (!text) {
@@ -837,11 +487,9 @@ async function sendVoiceCommand() {
     return;
   }
 
-  const reportCommand = parseReportVoiceCommand(text);
-  if (reportCommand) {
+  if (/(念|读|播报|朗读|阅读|说一下|讲讲|听一下)/.test(text) && /提醒/.test(text)) {
     document.getElementById('userInput').value = '';
-    showGlobalVoiceStatus('报告播报', '正在为你朗读报告...', 'speaking');
-    await speakReport(reportCommand.kind);
+    speakPendingAlert();
     return;
   }
 
@@ -1652,7 +1300,6 @@ function renderUI(state) {
     renderPendingOverlay([]);
   }
   
-  renderTaskReports(Array.isArray(state.reports) ? state.reports : []);
 }
 
 function drawCanvas(percent, isAlert) {
