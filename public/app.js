@@ -170,19 +170,30 @@ async function initLocationAndWeather() {
     const accuracy = !approximate && Number.isFinite(position.accuracy)
       ? ' · 精度约 ' + Math.round(position.accuracy) + ' 米' : '';
     if (meta) meta.innerText = source + accuracy + ' · 位置更新 ' + new Date(currentLocation.updatedAt).toLocaleTimeString('zh-CN', { hour12: false });
-    let address;
+    if (locDisplay) locDisplay.innerText = '定位成功，正在解析地址…';
+    let address = '';
     try {
       address = await reverseGeocode(myLat, myLon, approximate);
     } catch (error) {
-      if (!approximate) throw error;
-      address = formatLocationAddress(position.address, true);
+      // 地址服务异常不等于坐标定位失败，也不影响已发出的天气请求。
+      if (approximate) {
+        try {
+          address = formatLocationAddress(position.address, true);
+        } catch (addressError) {
+          // 网络定位的地址字段也可能不完整；保留有效坐标。
+        }
+      }
+      if (!address && meta) {
+        meta.innerText += ' · 地址服务暂不可用，天气按已获取坐标查询';
+      }
     }
-    if (locDisplay) locDisplay.innerText = address;
+    if (locDisplay) locDisplay.innerText = address || '定位成功，地址解析暂不可用';
   } catch (error) {
-    if (locDisplay) locDisplay.innerText = '定位失败，请重新定位';
     if (positionUpdated) {
-      if (meta) meta.innerText += ' · 地址解析失败，天气按已获取坐标查询';
+      if (locDisplay) locDisplay.innerText = '定位成功，数据更新暂不可用';
+      if (meta) meta.innerText += ' · 已获取坐标，请稍后重试更新';
     } else {
+      if (locDisplay) locDisplay.innerText = '定位失败，请重新定位';
       // 不把默认城市或上一次位置的天气冒充为当前位置天气。
       myLat = null;
       myLon = null;
