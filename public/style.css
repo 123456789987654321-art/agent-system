@@ -1,10 +1,10 @@
 :root {
-  --bg-color: #e9eff6;
-  --panel-bg: #ffffff;
-  --text-main: #24364b;
-  --text-sub: #60748a;
-  --card-bg: #f5f8fc;
-  --border-color: #dce5ef;
+  --bg-color: #aec7df;
+  --panel-bg: #e1edf8;
+  --text-main: #193750;
+  --text-sub: #45617b;
+  --card-bg: #d9e8f6;
+  --border-color: #a9c2db;
 }
 body.dark-mode {
   --bg-color: #1a202c;
@@ -820,62 +820,82 @@ body.dark-mode .digital-human-card.agent-offline .avatar-online { background: rg
 .hourly-weather-icon .ui-icon { width: 26px; height: 26px; }
 .daily-weather-icon .ui-icon { width: 34px; height: 34px; }
 
-/* Light theme: layered cool surfaces and a subtle technical grid. */
+/* Light theme: stronger blue-gray foundations and distinct blue/teal surfaces. */
 body:not(.dark-mode) {
   background-image:
-    radial-gradient(ellipse at 3% 8%, rgba(100, 146, 210, 0.23), transparent 45%),
-    radial-gradient(ellipse at 98% 95%, rgba(89, 176, 188, 0.14), transparent 42%),
-    linear-gradient(rgba(82, 116, 154, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(82, 116, 154, 0.035) 1px, transparent 1px),
-    linear-gradient(135deg, #edf2f9, #e5edf5 48%, #eef4f6);
+    radial-gradient(ellipse at 0% 15%, rgba(54, 109, 169, 0.42), transparent 48%),
+    radial-gradient(ellipse at 100% 95%, rgba(33, 139, 158, 0.30), transparent 46%),
+    linear-gradient(rgba(35, 77, 119, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(35, 77, 119, 0.06) 1px, transparent 1px),
+    linear-gradient(135deg, #b8cee4, #a9c4df 48%, #b5d2d9);
   background-size: auto, auto, 48px 48px, 48px 48px, auto;
 }
 body:not(.dark-mode) .sidebar-block {
-  background: linear-gradient(175deg, #f9fcff 0%, #eaf1fa 58%, #dfeaf5 100%);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.85), 0 12px 36px rgba(37, 67, 108, 0.09);
+  background: linear-gradient(175deg, #d2e4f4 0%, #b2cfe7 58%, #93b6d3 100%);
+  box-shadow: inset 0 0 0 1px rgba(239, 249, 255, 0.60), 0 14px 34px rgba(24, 65, 107, 0.18);
 }
 body:not(.dark-mode) .main-block {
   background:
-    radial-gradient(ellipse at 100% 0%, rgba(220, 233, 249, 0.75), transparent 40%),
-    linear-gradient(150deg, rgba(255, 255, 255, 0.97), rgba(244, 248, 253, 0.96));
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.9), 0 16px 46px rgba(37, 67, 108, 0.07);
+    radial-gradient(ellipse at 100% 0%, rgba(146, 183, 219, 0.35), transparent 45%),
+    linear-gradient(150deg, #d6e5f3, #c9dded);
+  box-shadow: inset 0 0 0 1px rgba(231, 244, 255, 0.65), 0 18px 46px rgba(24, 65, 107, 0.15);
 }
-body:not(.dark-mode) .nav-item { background: rgba(255, 255, 255, 0.46); }
-body:not(.dark-mode) .nav-item:hover { background: rgba(255, 255, 255, 0.85); }
+body:not(.dark-mode) .top-header-center {
+  padding: 17px 20px; border: 1px solid #386f94; border-radius: 12px;
+  color: #f5faff;
+  background:
+    linear-gradient(110deg, transparent 66%, rgba(125, 206, 224, 0.08) 66%, rgba(125, 206, 224, 0.08) 77%, transparent 77%),
+    linear-gradient(110deg, #123758, #1f5e87 65%, #267b91);
+  box-shadow: 0 7px 20px rgba(18, 55, 88, 0.18);
+}
+body:not(.dark-mode) .top-header-center .subtitle { color: #d2e7f3; margin-top: 4px; }
+body:not(.dark-mode) .top-header-center .weather-time { color: #c0ddec; margin-top: 4px; }
+body:not(.dark-mode) .nav-item { background: rgba(219, 234, 248, 0.64); border-color: #9fbdd8; }
+body:not(.dark-mode) .nav-item:hover { background: #dcebf8; border-color: #588ab7; }
 body:not(.dark-mode) .nav-item.active {
-  color: #225da6; border-color: #aac6e7;
-  background: linear-gradient(110deg, #dceafb, #f1f7ff);
-  box-shadow: inset 3px 0 0 #397bc3, 0 4px 12px rgba(42, 92, 150, 0.08);
+  color: #f4faff; border-color: #2e679a;
+  background: linear-gradient(110deg, #204d78, #327aa6);
+  box-shadow: inset 3px 0 0 #7bd0de, 0 5px 13px rgba(25, 72, 114, 0.22);
 }
 body:not(.dark-mode) .sidebar-block .wake-btn {
-  background: linear-gradient(135deg, #347bc2, #22568f);
-  box-shadow: 0 5px 14px rgba(34, 86, 143, 0.18);
+  background: linear-gradient(135deg, #2a6d9f, #164b73);
+  box-shadow: 0 5px 14px rgba(24, 65, 107, 0.24);
 }
 body:not(.dark-mode) .card {
-  background: linear-gradient(125deg, #fbfdff, #f0f5fb);
-  box-shadow: 0 5px 18px rgba(49, 76, 111, 0.04), inset 0 1px 0 #fff;
+  background: linear-gradient(125deg, #e4effa, #cddff1);
+  box-shadow: 0 5px 16px rgba(34, 76, 116, 0.09), inset 0 1px 0 rgba(238, 248, 255, 0.70);
 }
+body:not(.dark-mode) .card h3 { border-bottom-color: rgba(73, 120, 159, 0.27); }
 body:not(.dark-mode) .hourly-weather-card {
-  background: linear-gradient(120deg, #f0f6ff, #f7fbfe 58%, #edf6f7);
+  background: linear-gradient(120deg, #d0e9ed, #badce3);
+  border-color: #94c2cd;
 }
-body:not(.dark-mode) .input-card { background: linear-gradient(110deg, #eef4fb, #f8fbff); }
+body:not(.dark-mode) .projection-card { background: linear-gradient(120deg, #d9e1f3, #c4d3eb); }
+body:not(.dark-mode) .input-card { background: linear-gradient(110deg, #cbdfee, #b6d3e6); }
+body:not(.dark-mode) .input-group input { color: var(--text-main); background: #e8f2fb; border-color: #9fbcd6; }
 body:not(.dark-mode) .digital-human-card {
   background:
-    radial-gradient(ellipse at 65% 25%, rgba(119, 165, 224, 0.17), transparent 52%),
-    linear-gradient(155deg, #f4f8ff, #e8f1fa 65%, #e7f2f3);
+    radial-gradient(ellipse at 65% 25%, rgba(62, 127, 188, 0.28), transparent 52%),
+    linear-gradient(155deg, #c9def2, #adcde4 65%, #b7dcdf);
+  border-color: #91b7cf;
 }
 body:not(.dark-mode) .avatar-3d-wrapper {
   background:
-    radial-gradient(ellipse at 50% 82%, rgba(70, 132, 199, 0.15), transparent 52%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(219, 233, 247, 0.54));
+    radial-gradient(ellipse at 50% 82%, rgba(40, 112, 169, 0.23), transparent 52%),
+    linear-gradient(180deg, #d8eafa, #accae3);
 }
+body:not(.dark-mode) .avatar-caption { background: rgba(223, 238, 248, 0.94); }
 body:not(.dark-mode) .device-item,
 body:not(.dark-mode) .weather-card,
 body:not(.dark-mode) .hourly-item:not(.past),
 body:not(.dark-mode) .weather-metric {
-  background: linear-gradient(155deg, #fff, #f6f9fd);
-  box-shadow: 0 3px 10px rgba(37, 67, 108, 0.05), inset 0 0 0 1px rgba(213, 225, 239, 0.45);
+  background: linear-gradient(155deg, #edf4fb, #dceaf6);
+  box-shadow: 0 3px 10px rgba(32, 73, 111, 0.10), inset 0 0 0 1px rgba(155, 186, 214, 0.60);
 }
-body:not(.dark-mode) .setting-box { background: linear-gradient(110deg, #eaf1fa, #f4f8fd); }
+body:not(.dark-mode) #page-appliances > div > .card:nth-child(2) { background: linear-gradient(125deg, #d5e9eb, #bedee2); }
+body:not(.dark-mode) #page-appliances > div > .card:nth-child(3) { background: linear-gradient(125deg, #cfe3f3, #bcd5ea); }
+body:not(.dark-mode) #page-appliances > div > .card:nth-child(4) { background: linear-gradient(125deg, #dde4f4, #c8d6ed); }
+body:not(.dark-mode) .weather-trend-card { background: linear-gradient(125deg, #d6e7f4, #c6ddeb); }
+body:not(.dark-mode) .setting-box { background: linear-gradient(110deg, #bfd7eb, #d4e5f3); }
 body:not(.dark-mode) .card h3 > .ui-icon,
-body:not(.dark-mode) .weather-icon { color: #476d98; }
+body:not(.dark-mode) .weather-icon { color: #285e86; }
