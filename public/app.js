@@ -3,8 +3,8 @@ const ws = new WebSocket(`${wsProtocol}//${location.host}`);
 const canvas = document.getElementById('timerCanvas');
 const ctx = canvas.getContext('2d');
 
-let myLat = 26.0753; 
-let myLon = 119.3062;
+let myLat = null;
+let myLon = null;
 let currentDevicesState = {};
 
 // 永久锁定机制：用“期望状态”记录操作，直到服务器数据真实同步才解锁
@@ -14,6 +14,12 @@ let pendingDeviceStates = {};
 let weatherChart = null; 
 let todayWeatherSnapshot = null;
 let weatherFetchPromise = null;
+let weatherLocationVersion = 0;
+let locationInProgress = false;
+let currentLocation = null;
+let lastLocationAttemptAt = 0;
+let weatherRefreshTimer = null;
+const WEATHER_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 let avatarRecognition = null;
 let avatarSilenceTimer = null;
 let avatarModelSourceIndex = 0;
@@ -39,51 +45,170 @@ window.onload = () => {
   updateAgentConnectionState();
 
   initLocationAndWeather();
+  startWeatherAutoRefresh();
 };
 
-function initLocationAndWeather() {
-  const locDisplay = document.getElementById('location-display');
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        myLat = pos.coords.latitude;
-        myLon = pos.coords.longitude;
-        reportLocation();
-        await reverseGeocode(myLat, myLon); 
-        fetchHourlyWeather(); 
-        fetchWeather();       
-      },
-      async (err) => {
-        reportLocation();
-        if (locDisplay) locDisplay.innerText = `📍 未授权定位，默认: 中国-福建省-福州市 [经度: ${myLon.toFixed(2)}, 纬度: ${myLat.toFixed(2)}]`;
-        fetchHourlyWeather();
-        fetchWeather();
-      },
-      { timeout: 5000 }
-    );
-  } else {
-    fetchHourlyWeather();
-    reportLocation();
-    fetchWeather();
+function validCoordinates(lat, lon) {
+  return Number.isFinite(lat) && Number.isFinite(lon)
+    && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
+}
+
+async function fetchJsonWithTimeout(url) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  try {
+    const res = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+    if (!res.ok) throw new Error('位置或天气接口请求失败');
+    const data = await res.json();
+    if (!data || data.error) throw new Error('位置或天气接口未返回有效数据');
+    return data;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
-async function reverseGeocode(lat, lon) {
-  const locDisplay = document.getElementById('location-display');
-  if (!locDisplay) return;
-  try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14&addressdetails=1&accept-language=zh-CN`);
-    const data = await res.json();
-    if (data && data.address) {
-      const ad = data.address;
-      const addrStr = [ad.country || '中国', ad.state || ad.province || '', ad.city || ad.town || ad.county || '', ad.suburb || ad.district || ''].filter(Boolean).join('-');
-      locDisplay.innerText = `📍 ${addrStr} [经度: ${lon.toFixed(2)}, 纬度: ${lat.toFixed(2)}]`;
-    } else {
-      locDisplay.innerText = `📍 定位成功 [经度: ${lon.toFixed(2)}, 纬度: ${lat.toFixed(2)}]`;
+function getBrowserLocation() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) return reject(new Error('浏览器不支持定位'));
+    const timeoutId = setTimeout(() => reject(new Error('浏览器定位超时')), 10000);
+    try {
+      navigator.geolocation.getCurrentPosition(pos => {
+        clearTimeout(timeoutId);
+        const { latitude: lat, longitude: lon, accuracy } = pos.coords;
+        if (!validCoordinates(lat, lon)) return reject(new Error('浏览器坐标无效'));
+        resolve({ lat, lon, accuracy, source: 'browser' });
+      }, error => {
+        clearTimeout(timeoutId);
+        reject(error);
+      }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
+    } catch (error) {
+      clearTimeout(timeoutId);
+      reject(error);
     }
-  } catch(e) {
-    locDisplay.innerText = `📍 定位成功 (解析失败) [经度: ${lon.toFixed(2)}, 纬度: ${lat.toFixed(2)}]`;
+  });
+}
+
+async function getApiLocation() {
+  // 由浏览器直接请求，查询访问者的公网 IP，不能查询云服务器自身的 IP。
+  const data = await fetchJsonWithTimeout('https://ipwho.is/');
+  if (data.success === false) throw new Error('API 定位失败');
+  if (!validCoordinates(data.latitude, data.longitude)) throw new Error('API 坐标无效');
+  return {
+    lat: data.latitude, lon: data.longitude, source: 'ip',
+    address: { country: data.country, state: data.region, city: data.city }
+  };
+}
+
+function formatLocationAddress(ad, approximate = false) {
+  if (!ad) throw new Error('地址缺失');
+  const province = ad.state || ad.province;
+  const municipality = /^(北京|天津|上海|重庆)市?$/.test(province || '') ? province : '';
+  const city = ad.city || ad.municipality || ad.state_district || municipality;
+  const county = ad.county || ad.city_district || ad.district || ad.borough
+    || (/(县|区|旗|市)$/.test(ad.suburb || '') ? ad.suburb : '');
+  // IP 的城市中心坐标无法证明访问者所在的县/区。
+  const parts = [ad.country, province, city, approximate ? '未确定' : county || '未确定'];
+  if (parts.slice(0, 3).some(part => typeof part !== 'string' || !part.trim())) {
+    throw new Error('地址行政区划不完整');
   }
+  return parts.map(part => part.trim()).join('-');
+}
+
+async function reverseGeocode(lat, lon, approximate = false) {
+  const url = 'https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat
+    + '&lon=' + lon + '&zoom=14&addressdetails=1&accept-language=zh-CN';
+  const data = await fetchJsonWithTimeout(url);
+  return formatLocationAddress(data.address, approximate);
+}
+
+function resetWeatherDisplay(message) {
+  for (const id of ['weather-container', 'hourlyWeatherContainer']) {
+    const element = document.getElementById(id);
+    if (element) element.innerText = message;
+  }
+  for (const id of ['cw-feels', 'cw-humidity', 'cw-wind', 'cw-rain']) {
+    const element = document.getElementById(id);
+    if (element) element.innerText = '--';
+  }
+  if (weatherChart) { weatherChart.destroy(); weatherChart = null; }
+  const updated = document.getElementById('weather-updated');
+  if (updated) updated.innerText = message;
+}
+
+async function initLocationAndWeather() {
+  if (locationInProgress) return;
+  locationInProgress = true;
+  lastLocationAttemptAt = Date.now();
+  const locDisplay = document.getElementById('location-display');
+  const meta = document.getElementById('location-meta');
+  const button = document.getElementById('location-button');
+  if (locDisplay) locDisplay.innerText = '正在定位…';
+  if (meta) meta.innerText = '正在获取浏览器位置';
+  if (button) { button.disabled = true; button.innerText = '定位中…'; }
+  let positionUpdated = false;
+  try {
+    let position;
+    try {
+      position = await getBrowserLocation();
+    } catch (error) {
+      if (meta) meta.innerText = '浏览器定位不可用，正在通过 API 获取大致位置';
+      position = await getApiLocation();
+    }
+    myLat = position.lat;
+    myLon = position.lon;
+    currentLocation = { ...position, updatedAt: Date.now() };
+    positionUpdated = true;
+    weatherLocationVersion += 1;
+    weatherFetchPromise = null;
+    todayWeatherSnapshot = null;
+    resetWeatherDisplay('正在获取当前位置的天气…');
+    reportLocation();
+    fetchHourlyWeather();
+    fetchWeather();
+    const approximate = position.source === 'ip';
+    const source = approximate ? 'API 网络定位（大致位置，县/区未确定）' : '浏览器定位';
+    const accuracy = !approximate && Number.isFinite(position.accuracy)
+      ? ' · 精度约 ' + Math.round(position.accuracy) + ' 米' : '';
+    if (meta) meta.innerText = source + accuracy + ' · 位置更新 ' + new Date(currentLocation.updatedAt).toLocaleTimeString('zh-CN', { hour12: false });
+    let address;
+    try {
+      address = await reverseGeocode(myLat, myLon, approximate);
+    } catch (error) {
+      if (!approximate) throw error;
+      address = formatLocationAddress(position.address, true);
+    }
+    if (locDisplay) locDisplay.innerText = address;
+  } catch (error) {
+    if (locDisplay) locDisplay.innerText = '定位失败，请重新定位';
+    if (positionUpdated) {
+      if (meta) meta.innerText += ' · 地址解析失败，天气按已获取坐标查询';
+    } else {
+      // 不把默认城市或上一次位置的天气冒充为当前位置天气。
+      myLat = null;
+      myLon = null;
+      currentLocation = null;
+      weatherLocationVersion += 1;
+      weatherFetchPromise = null;
+      todayWeatherSnapshot = null;
+      resetWeatherDisplay('无法确定当前位置，请重新定位后获取天气');
+      if (meta) meta.innerText = '浏览器与 API 均未获取到有效位置';
+    }
+  } finally {
+    locationInProgress = false;
+    if (button) { button.disabled = false; button.innerText = '定位'; }
+  }
+}
+
+function startWeatherAutoRefresh() {
+  if (weatherRefreshTimer !== null) return;
+  const refreshIfDue = () => {
+    if (document.visibilityState !== 'hidden'
+      && Date.now() - lastLocationAttemptAt >= WEATHER_REFRESH_INTERVAL_MS) {
+      initLocationAndWeather();
+    }
+  };
+  weatherRefreshTimer = setInterval(refreshIfDue, WEATHER_REFRESH_INTERVAL_MS);
+  document.addEventListener('visibilitychange', refreshIfDue);
 }
 
 // ==== AI 管家在线 / 离线状态（是否已配置可用 API Key）====
@@ -415,10 +540,11 @@ async function markAllReportsRead() {
 
 // 把浏览器定位同步给服务端，供每日报的天气使用
 function reportLocation() {
+  if (!validCoordinates(myLat, myLon)) return;
   fetch('/api/location', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ lat: myLat, lon: myLon })
+    body: JSON.stringify({ lat: myLat, lon: myLon, source: currentLocation?.source, updatedAt: currentLocation?.updatedAt })
   }).catch(() => undefined);
 }
 
@@ -1290,13 +1416,15 @@ updateAgentConnectionState();
 
 // 渲染总览页面上方的小时天气，并同步渲染折线图
 async function fetchHourlyWeather() {
+  if (!validCoordinates(myLat, myLon)) return;
+  const locationVersion = weatherLocationVersion;
   const container = document.getElementById('hourlyWeatherContainer');
   try {
-    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${myLat}&longitude=${myLon}&hourly=temperature_2m,weathercode&timezone=Asia%2FShanghai&forecast_days=1`);
-    const data = await res.json();
-    const now = new Date();
-    let currentH = now.getHours();
-    if (now.getMinutes() > 30) currentH = (currentH + 1) % 24;
+    const data = await fetchJsonWithTimeout(`https://api.open-meteo.com/v1/forecast?latitude=${myLat}&longitude=${myLon}&hourly=temperature_2m,weathercode&timezone=auto&forecast_days=1`);
+    if (locationVersion !== weatherLocationVersion) return;
+    const now = new Date(Date.now() + (data.utc_offset_seconds || 0) * 1000);
+    let currentH = now.getUTCHours();
+    if (now.getUTCMinutes() > 30) currentH = (currentH + 1) % 24;
 
     let hoursData = [];
     let chartLabels = [];
@@ -1367,19 +1495,25 @@ async function fetchHourlyWeather() {
       });
     }
   } catch (error) { 
+    if (locationVersion !== weatherLocationVersion) return;
     if(container) container.innerHTML = "获取小时天气失败"; 
   }
 }
 
 // 获取未来7天预报及实时气象详情
 async function fetchWeather() {
+  if (!validCoordinates(myLat, myLon)) return null;
   if (weatherFetchPromise) return weatherFetchPromise;
+  const locationVersion = weatherLocationVersion;
 
   weatherFetchPromise = (async () => {
     const container = document.getElementById('weather-container');
     try {
-      const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${myLat}&longitude=${myLon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,wind_speed_10m,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Asia%2FShanghai`);
-      const data = await res.json();
+      const data = await fetchJsonWithTimeout(`https://api.open-meteo.com/v1/forecast?latitude=${myLat}&longitude=${myLon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,wind_speed_10m,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`);
+      if (locationVersion !== weatherLocationVersion) return null;
+      if (!data.current || !data.daily || !Array.isArray(data.daily.time) || data.daily.time.length < 7) {
+        throw new Error('天气数据不完整');
+      }
       let html = '';
 
       for (let i = 0; i < 7; i++) {
@@ -1406,6 +1540,9 @@ async function fetchWeather() {
 
       todayWeatherSnapshot = {
         fetchedAt: Date.now(),
+        locationVersion,
+        source: currentLocation?.source,
+        dataTime: data.current.time,
         dailyCode: data.daily.weathercode[0],
         maxTemp: data.daily.temperature_2m_max[0],
         minTemp: data.daily.temperature_2m_min[0],
@@ -1417,12 +1554,19 @@ async function fetchWeather() {
         precipitation: data.current.precipitation
       };
 
+      const updated = document.getElementById('weather-updated');
+      if (updated) updated.innerText = '天气数据时间：' + (data.current.time || '未知').replace('T', ' ')
+        + '（' + (data.timezone || '当地时间') + '） · 获取时间：'
+        + new Date(todayWeatherSnapshot.fetchedAt).toLocaleTimeString('zh-CN', { hour12: false })
+        + ' · 每 5 分钟自动更新';
       return todayWeatherSnapshot;
     } catch (error) {
-      if (container) container.innerHTML = "获取天气失败，请检查网络连接。";
+      if (locationVersion !== weatherLocationVersion) return null;
+      todayWeatherSnapshot = null;
+      resetWeatherDisplay('获取天气失败，请检查网络或点击定位重试');
       return null;
     } finally {
-      weatherFetchPromise = null;
+      if (locationVersion === weatherLocationVersion) weatherFetchPromise = null;
     }
   })();
 

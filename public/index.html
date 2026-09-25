@@ -290,13 +290,18 @@
       <!-- 页面 3：天气 -->
       <div id="page-weather" class="page-view">
         <div class="card">
-          <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+          <div class="weather-header">
             <h3 style="border: none; margin: 0; padding: 0;">未来 7 天天气预报</h3>
-            <div id="location-display" style="font-size: 15px; color: #007bff; font-weight: bold;">
-              📍 正在请求浏览器定位权限...
+            <div class="weather-location">
+              <div class="location-copy">
+                <span id="location-display" role="status" aria-live="polite">正在定位…</span>
+                <small id="location-meta">浏览器定位优先，API 网络定位备用</small>
+              </div>
+              <button id="location-button" class="location-button" type="button" onclick="initLocationAndWeather()">定位</button>
             </div>
           </div>
-          <div id="weather-container" class="weather-grid">加载中...</div>
+          <div id="weather-container" class="weather-grid">正在确定位置...</div>
+          <div id="weather-updated" class="weather-updated" role="status">等待定位后获取天气</div>
         </div>
 
         <div class="card weather-trend-card">

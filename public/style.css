@@ -680,6 +680,16 @@ input:checked + .slider { background-color: #48bb78; }
 input:checked + .slider:before { transform: translateX(22px); }
 
 /* 其他样式 */
+.weather-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
+.weather-location { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-left: auto; min-width: 0; max-width: 100%; }
+.location-copy { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+#location-meta, .weather-updated { color: var(--text-sub); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.weather-updated { margin-top: 8px; }
+#location-display { font-size: 15px; color: #007bff; font-weight: bold; overflow-wrap: anywhere; }
+.location-button { flex-shrink: 0; padding: 7px 14px; border: 1px solid #007bff; border-radius: 6px; color: white; background: #007bff; font: inherit; font-size: 14px; cursor: pointer; }
+.location-button:hover:not(:disabled) { background: #0069d9; border-color: #0069d9; }
+.location-button:focus-visible { outline: 2px solid #007bff; outline-offset: 3px; }
+.location-button:disabled { opacity: 0.65; cursor: wait; }
 .weather-grid { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; }
 .weather-card { min-width: 120px; background: var(--panel-bg); padding: 15px; text-align: center; border-radius: 8px; }
 .weather-trend-card { margin-top: 20px; min-height: 500px; display: flex; flex-direction: column; }

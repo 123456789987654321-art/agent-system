@@ -728,12 +728,14 @@ app.post('/api/report_read', (req, res) => {
 });
 // 浏览器把定位同步给服务端，用于生成每日报里的天气
 app.post('/api/location', (req, res) => {
-  const { lat, lon } = req.body || {};
-  const latitude = Number(lat);
-  const longitude = Number(lon);
-  if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
-    homeState.location = { lat: latitude, lon: longitude };
+  const { lat, lon, source } = req.body || {};
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)
+    || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+    return res.status(400).json({ success: false, error: '无效的定位坐标' });
   }
+  homeState.location = {
+    lat, lon, source: source === 'ip' ? 'ip' : 'browser', updatedAt: Date.now()
+  };
   res.json({ success: true });
 });
 
