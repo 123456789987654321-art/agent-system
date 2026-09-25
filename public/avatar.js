@@ -108,7 +108,7 @@ async function loadModel() {
   try {
     if (!renderer) createRenderer();
     const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-    const gltf = await loader.loadAsync('./assets/home-assistant.glb?v=portrait-1', event => {
+    const gltf = await loader.loadAsync('./assets/home-assistant.glb?v=portrait-seams-2', event => {
       if(event.total) status.textContent = '正在加载三维形象 ' + Math.round(event.loaded/event.total*100) + '%';
     });
     model = gltf.scene;

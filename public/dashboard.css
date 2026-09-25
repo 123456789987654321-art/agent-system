@@ -7,11 +7,12 @@ body.dashboard-fixed .top-header-center { padding: clamp(10px, 1.8dvh, 18px) 20p
 .dashboard-fixed .top-header-center h1 { font-size: clamp(18px, 2.5dvh, 23px); }
 .dashboard-fixed .top-header-center .subtitle { margin-top: 2px; }
 #page-overview.active, #page-appliances.active { flex: 1; min-height: 0; gap: 12px; }
-#page-overview .grid-layout { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1.3fr) minmax(260px, 1fr); grid-template-rows: minmax(0, .8fr) minmax(0, 1.5fr) auto; gap: clamp(8px, 1.5dvh, 16px); }
+#page-overview .grid-layout { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1.3fr) minmax(260px, 1fr); grid-template-rows: minmax(min-content, .8fr) minmax(0, 1.5fr) auto; gap: clamp(8px, 1.5dvh, 16px); }
 #page-overview .card, #page-appliances .card { min-height: 0; padding: clamp(10px, 1.6dvh, 18px); }
 #page-overview .card h3, #page-appliances .card h3 { flex-shrink: 0; font-size: 14px; padding-bottom: 7px; margin-bottom: 8px; }
 #page-overview .hourly-weather-card, #page-overview .projection-card { display: flex; flex-direction: column; }
-#page-overview .hourly-weather-scroll { flex: 1; min-height: 0; align-items: center; overflow-y: hidden; }
+/* Preserve the full forecast row and horizontal scrollbar on short viewports. */
+#page-overview .hourly-weather-scroll { flex: 0 0 auto; align-items: flex-start; overflow-y: hidden; }
 #page-overview .hourly-item { padding: 6px 0; flex-basis: 78px; }
 #page-overview .hourly-weather-icon { margin: 4px 0; }
 #page-overview .hourly-weather-icon .ui-icon { width: 22px; height: 22px; }
@@ -87,7 +88,7 @@ body.dashboard-fixed .top-header-center { padding: clamp(10px, 1.8dvh, 18px) 20p
   #page-overview.active, #page-appliances.active { gap: 8px; }
   .dashboard-switcher { display: grid; flex-shrink: 0; gap: 6px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .device-switcher { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  #page-overview .grid-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(96px, .45fr) minmax(0, 1.4fr) auto; gap: 8px; }
+  #page-overview .grid-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(min-content, .45fr) minmax(0, 1.4fr) auto; gap: 8px; }
   #page-overview .card { padding: 10px; }
   #page-overview .hourly-weather-card { grid-row: 1; }
   #page-overview .projection-card { grid-row: 2; }
@@ -121,7 +122,7 @@ body.dashboard-fixed .top-header-center { padding: clamp(10px, 1.8dvh, 18px) 20p
   .dashboard-fixed .main-block { padding: 8px; }
   body.dashboard-fixed .top-header-center { padding: 7px 10px; }
   .dashboard-fixed #projDate { display: none; }
-  #page-overview .grid-layout { grid-template-rows: 82px minmax(0, 1fr) auto; gap: 6px; }
+  #page-overview .grid-layout { grid-template-rows: minmax(min-content, 82px) minmax(0, 1fr) auto; gap: 6px; }
   #page-overview .card { padding: 7px; }
   #page-overview .card h3 { margin-bottom: 4px; padding-bottom: 4px; font-size: 12px; }
   #page-overview .task-controls { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin-top: 5px; }
@@ -137,7 +138,7 @@ body.dashboard-fixed .top-header-center { padding: clamp(10px, 1.8dvh, 18px) 20p
   .dashboard-fixed .nav-item { min-height: 38px; padding-block: 8px; }
   body.dashboard-fixed .top-header-center { padding: 6px 12px; }
   .dashboard-fixed .weather-time { flex-direction: row; align-items: center; gap: 10px; }
-  #page-overview .grid-layout { grid-template-rows: 82px minmax(0, 1fr) auto; gap: 6px; }
+  #page-overview .grid-layout { grid-template-rows: minmax(min-content, 82px) minmax(0, 1fr) auto; gap: 6px; }
   #page-overview .card, #page-appliances .card { padding: 7px; }
   #page-overview .card h3, #page-appliances .card h3 { margin-bottom: 4px; padding-bottom: 4px; font-size: 12px; }
   #page-overview .task-controls { gap: 4px; margin-top: 4px; }
