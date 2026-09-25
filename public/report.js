@@ -54,13 +54,12 @@ window.DailyReport = (() => {
       : '';
     let taskText = finished.length ? `已结束计时的任务包括：${finishedNames}。` : '今天暂时没有任务计时结束。';
     if (activeTask) taskText += `当前${activeTask.paused ? '已暂停' : '正在进行'}${activeTask.reminder ? '提醒' : '任务'}「${activeTask.name}」，剩余约 ${duration(activeTask.remaining)}。`;
-    else taskText += '目前没有正在计时的任务。';
     if (pendingTasks.length) {
       const next = pendingTasks[0];
       taskText += `另有 ${pendingTasks.length} 项安排等待执行，下一项为「${next.name}」，计划时间 ${dateTime(next.scheduledAt)}；如有任务正在执行，将按队列顺序开始。`;
     }
     const deviceText = counts.deviceChanges
-      ? `今天共记录 ${counts.deviceChanges} 次设备状态变更。目前系统中有 ${data.devicesOn} 个设备处于开启状态，具体操作见下方活动记录。`
+      ? `今天共记录 ${counts.deviceChanges} 次设备状态变更。目前系统中有 ${data.devicesOn} 个设备处于开启状态。`
       : `今天尚无设备状态变更记录。目前系统中有 ${data.devicesOn} 个设备处于开启状态。`;
     const weather = weatherText(lastWeather);
     const groups = [['今日天气', weather], ['任务与提醒', taskText], ['家电使用', deviceText]];
