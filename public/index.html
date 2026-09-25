@@ -2,9 +2,11 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>居家管理辅助控制系统</title>
   <link rel="stylesheet" href="style.css?v=20260925-contrast">
   <link rel="stylesheet" href="report.css?v=20260925-contrast">
+  <link rel="stylesheet" href="layout.css?v=20260925-layout">
   <!-- 引入谷歌 3D 渲染引擎 -->
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
   <!-- 引入 Chart.js 用于绘制折线图 -->
@@ -15,22 +17,22 @@
     <!-- 左侧导航栏 -->
     <aside class="sidebar-block">
       <div class="nav-items">
-        <div class="nav-item active" onclick="switchPage('overview', this)"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-home"></use></svg> 总览</div>
-        <div class="nav-item" onclick="switchPage('appliances', this)"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-devices"></use></svg> 家电</div>
-        <div class="nav-item" onclick="switchPage('weather', this)"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-cloud-sun"></use></svg> 天气</div>
-        <button type="button" class="nav-item report-nav" onclick="switchPage('report', this)"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925-report#icon-report"></use></svg> 报告</button>
-        <div class="nav-item" onclick="switchPage('settings', this)"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-settings"></use></svg> 设置</div>
+        <button type="button" class="nav-item active" aria-current="page" onclick="switchPage('overview', this)"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-home"></use></svg> 总览</button>
+        <button type="button" class="nav-item" aria-current="false" onclick="switchPage('appliances', this)"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-devices"></use></svg> 家电</button>
+        <button type="button" class="nav-item" aria-current="false" onclick="switchPage('weather', this)"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-cloud-sun"></use></svg> 天气</button>
+        <button type="button" class="nav-item report-nav" aria-current="false" onclick="switchPage('report', this)"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925-report#icon-report"></use></svg> 报告</button>
+        <button type="button" class="nav-item" aria-current="false" onclick="switchPage('settings', this)"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-settings"></use></svg> 设置</button>
       </div>
-      <button class="wake-btn" onclick="summonButler()"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-mic"></use></svg> 呼唤管家</button>
+      <button class="wake-btn" aria-label="呼唤管家" onclick="summonButler()"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-mic"></use></svg> <span class="wake-label">呼唤管家</span></button>
     </aside>
 
     <!-- 右侧主内容区 -->
     <main class="main-block">
       <header class="top-header-center">
-        <h2>居家管理 Agent 中控台</h2>
-        <div class="subtitle">AI赋能设计，全屋智能托管</div>
+        <div class="header-copy"><h1>居家管理 Agent 中控台</h1>
+        <div class="subtitle">AI赋能设计，全屋智能托管</div></div>
         <div class="weather-time">
-          <span id="projDate">--</span> | 
+          <span id="projDate">--</span>
           <span id="projClock">--:--:--</span>
         </div>
       </header>
@@ -55,8 +57,8 @@
                 <div id="timeLeft">--:--</div>
                 <div id="taskScheduleHint" class="task-schedule-hint"></div>
               </div>
-              <div class="pending-task-overlay" id="pendingTaskOverlay"></div>
             </div>
+            <div class="pending-task-overlay" id="pendingTaskOverlay" aria-live="polite"></div>
             <div class="task-controls" id="taskControls">
               <span class="task-ctrl-group">
                 <button type="button" class="task-ctrl-btn" onclick="controlTask('pause')"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-pause"></use></svg> 暂停</button>
@@ -78,9 +80,9 @@
           </div>
 
           <div class="card input-card">
-            <h3>语音指令模拟</h3>
+            <h3><label for="userInput">指令输入</label></h3>
             <div class="input-group">
-              <input type="text" id="userInput" placeholder="例如：帮我打开卧室门，并设定洗衣机45分钟...">
+              <input type="text" id="userInput" placeholder="例如：打开客厅灯，洗衣计时45分钟">
               <button onclick="sendVoiceCommand()">发送</button>
             </div>
           </div>
@@ -200,86 +202,87 @@
 
       <!-- 页面 2：家电 (滑动开关版) -->
       <div id="page-appliances" class="page-view">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div class="page-heading"><div><h2>全屋设备</h2><p>按空间与设备类型，集中查看和控制家中设备。</p></div><span class="page-count">18 台设备</span></div>
+        <div class="appliance-layout">
           
           <!-- 门类 -->
           <div class="card">
-            <h3><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-door"></use></svg> 门控系统</h3>
+            <h3><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-door"></use></svg> 门控系统<span class="section-count">4 台设备</span></h3>
             <div class="device-grid">
               <div class="device-item"><span>大门</span><strong id="dev-door_main" class="off">关闭</strong>
-                <label class="switch"><input type="checkbox" id="switch-door_main" onchange="toggleDevice('door_main', '大门')"><span class="slider"></span></label>
+                <label class="switch"><input type="checkbox" id="switch-door_main" aria-label="大门开关" onchange="toggleDevice('door_main', '大门')"><span class="slider"></span></label>
               </div>
               <div class="device-item"><span>卧室门</span><strong id="dev-door_bedroom" class="off">关闭</strong>
-                <label class="switch"><input type="checkbox" id="switch-door_bedroom" onchange="toggleDevice('door_bedroom', '卧室门')"><span class="slider"></span></label>
+                <label class="switch"><input type="checkbox" id="switch-door_bedroom" aria-label="卧室门开关" onchange="toggleDevice('door_bedroom', '卧室门')"><span class="slider"></span></label>
               </div>
               <div class="device-item"><span>厕所门</span><strong id="dev-door_toilet" class="off">关闭</strong>
-                <label class="switch"><input type="checkbox" id="switch-door_toilet" onchange="toggleDevice('door_toilet', '厕所门')"><span class="slider"></span></label>
+                <label class="switch"><input type="checkbox" id="switch-door_toilet" aria-label="厕所门开关" onchange="toggleDevice('door_toilet', '厕所门')"><span class="slider"></span></label>
               </div>
               <div class="device-item"><span>阳台门</span><strong id="dev-door_balcony" class="off">关闭</strong>
-                <label class="switch"><input type="checkbox" id="switch-door_balcony" onchange="toggleDevice('door_balcony', '阳台门')"><span class="slider"></span></label>
+                <label class="switch"><input type="checkbox" id="switch-door_balcony" aria-label="阳台门开关" onchange="toggleDevice('door_balcony', '阳台门')"><span class="slider"></span></label>
               </div>
             </div>
           </div>
 
           <!-- 灯类 -->
           <div class="card">
-            <h3><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-light"></use></svg> 照明系统</h3>
+            <h3><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-light"></use></svg> 照明系统<span class="section-count">5 台设备</span></h3>
             <div class="device-grid">
               <div class="device-item"><span>客厅灯</span><strong id="dev-light_living" class="off">关闭</strong>
-                <label class="switch"><input type="checkbox" id="switch-light_living" onchange="toggleDevice('light_living', '客厅灯')"><span class="slider"></span></label>
+                <label class="switch"><input type="checkbox" id="switch-light_living" aria-label="客厅灯开关" onchange="toggleDevice('light_living', '客厅灯')"><span class="slider"></span></label>
               </div>
               <div class="device-item"><span>卧室灯</span><strong id="dev-light_bedroom" class="off">关闭</strong>
-                <label class="switch"><input type="checkbox" id="switch-light_bedroom" onchange="toggleDevice('light_bedroom', '卧室灯')"><span class="slider"></span></label>
+                <label class="switch"><input type="checkbox" id="switch-light_bedroom" aria-label="卧室灯开关" onchange="toggleDevice('light_bedroom', '卧室灯')"><span class="slider"></span></label>
               </div>
               <div class="device-item"><span>厨房灯</span><strong id="dev-light_kitchen" class="off">关闭</strong>
-                <label class="switch"><input type="checkbox" id="switch-light_kitchen" onchange="toggleDevice('light_kitchen', '厨房灯')"><span class="slider"></span></label>
+                <label class="switch"><input type="checkbox" id="switch-light_kitchen" aria-label="厨房灯开关" onchange="toggleDevice('light_kitchen', '厨房灯')"><span class="slider"></span></label>
               </div>
               <div class="device-item"><span>厕所灯</span><strong id="dev-light_toilet" class="off">关闭</strong>
-                <label class="switch"><input type="checkbox" id="switch-light_toilet" onchange="toggleDevice('light_toilet', '厕所灯')"><span class="slider"></span></label>
+                <label class="switch"><input type="checkbox" id="switch-light_toilet" aria-label="厕所灯开关" onchange="toggleDevice('light_toilet', '厕所灯')"><span class="slider"></span></label>
               </div>
               <div class="device-item"><span>阳台灯</span><strong id="dev-light_balcony" class="off">关闭</strong>
-                <label class="switch"><input type="checkbox" id="switch-light_balcony" onchange="toggleDevice('light_balcony', '阳台灯')"><span class="slider"></span></label>
+                <label class="switch"><input type="checkbox" id="switch-light_balcony" aria-label="阳台灯开关" onchange="toggleDevice('light_balcony', '阳台灯')"><span class="slider"></span></label>
               </div>
             </div>
           </div>
 
           <!-- 窗户类 -->
           <div class="card">
-            <h3><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-window"></use></svg> 窗户控制</h3>
+            <h3><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-window"></use></svg> 窗户控制<span class="section-count">3 台设备</span></h3>
             <div class="device-grid">
               <div class="device-item"><span>客厅窗</span><strong id="dev-window_living" class="off">关闭</strong>
-                <label class="switch"><input type="checkbox" id="switch-window_living" onchange="toggleDevice('window_living', '客厅窗')"><span class="slider"></span></label>
+                <label class="switch"><input type="checkbox" id="switch-window_living" aria-label="客厅窗开关" onchange="toggleDevice('window_living', '客厅窗')"><span class="slider"></span></label>
               </div>
               <div class="device-item"><span>卧室窗</span><strong id="dev-window_bedroom" class="off">关闭</strong>
-                <label class="switch"><input type="checkbox" id="switch-window_bedroom" onchange="toggleDevice('window_bedroom', '卧室窗')"><span class="slider"></span></label>
+                <label class="switch"><input type="checkbox" id="switch-window_bedroom" aria-label="卧室窗开关" onchange="toggleDevice('window_bedroom', '卧室窗')"><span class="slider"></span></label>
               </div>
               <div class="device-item"><span>厨房窗</span><strong id="dev-window_kitchen" class="off">关闭</strong>
-                <label class="switch"><input type="checkbox" id="switch-window_kitchen" onchange="toggleDevice('window_kitchen', '厨房窗')"><span class="slider"></span></label>
+                <label class="switch"><input type="checkbox" id="switch-window_kitchen" aria-label="厨房窗开关" onchange="toggleDevice('window_kitchen', '厨房窗')"><span class="slider"></span></label>
               </div>
             </div>
           </div>
 
           <!-- 其它家电 -->
           <div class="card">
-            <h3><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-devices"></use></svg> 生活电器</h3>
+            <h3><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-devices"></use></svg> 生活电器<span class="section-count">6 台设备</span></h3>
             <div class="device-grid">
               <div class="device-item"><span>空调</span><strong id="dev-ac" class="off">关闭</strong>
-                <label class="switch"><input type="checkbox" id="switch-ac" onchange="toggleDevice('ac', '空调')"><span class="slider"></span></label>
+                <label class="switch"><input type="checkbox" id="switch-ac" aria-label="空调开关" onchange="toggleDevice('ac', '空调')"><span class="slider"></span></label>
               </div>
               <div class="device-item"><span>热水器</span><strong id="dev-water_heater" class="off">关闭</strong>
-                <label class="switch"><input type="checkbox" id="switch-water_heater" onchange="toggleDevice('water_heater', '热水器')"><span class="slider"></span></label>
+                <label class="switch"><input type="checkbox" id="switch-water_heater" aria-label="热水器开关" onchange="toggleDevice('water_heater', '热水器')"><span class="slider"></span></label>
               </div>
               <div class="device-item"><span>煮水设备</span><strong id="dev-kettle" class="off">关闭</strong>
-                <label class="switch"><input type="checkbox" id="switch-kettle" onchange="toggleDevice('kettle', '煮水设备')"><span class="slider"></span></label>
+                <label class="switch"><input type="checkbox" id="switch-kettle" aria-label="煮水设备开关" onchange="toggleDevice('kettle', '煮水设备')"><span class="slider"></span></label>
               </div>
               <div class="device-item"><span>洗衣机</span><strong id="dev-washer" class="off">关闭</strong>
-                <label class="switch"><input type="checkbox" id="switch-washer" onchange="toggleDevice('washer', '洗衣机')"><span class="slider"></span></label>
+                <label class="switch"><input type="checkbox" id="switch-washer" aria-label="洗衣机开关" onchange="toggleDevice('washer', '洗衣机')"><span class="slider"></span></label>
               </div>
               <div class="device-item"><span>电视</span><strong id="dev-tv" class="off">关闭</strong>
-                <label class="switch"><input type="checkbox" id="switch-tv" onchange="toggleDevice('tv', '电视')"><span class="slider"></span></label>
+                <label class="switch"><input type="checkbox" id="switch-tv" aria-label="电视开关" onchange="toggleDevice('tv', '电视')"><span class="slider"></span></label>
               </div>
               <div class="device-item"><span>风扇</span><strong id="dev-fan" class="off">关闭</strong>
-                <label class="switch"><input type="checkbox" id="switch-fan" onchange="toggleDevice('fan', '风扇')"><span class="slider"></span></label>
+                <label class="switch"><input type="checkbox" id="switch-fan" aria-label="风扇开关" onchange="toggleDevice('fan', '风扇')"><span class="slider"></span></label>
               </div>
             </div>
           </div>
@@ -290,6 +293,7 @@
 
       <!-- 页面 3：天气 -->
       <div id="page-weather" class="page-view">
+        <div class="page-heading"><div><h2>天气与环境</h2><p>先看未来天气，再查看当前气象与小时变化。</p></div></div>
         <div class="card">
           <div class="weather-header">
             <h3 style="border: none; margin: 0; padding: 0;">未来 7 天天气预报</h3>
@@ -344,15 +348,17 @@
 
       <!-- 页面 5：设置 -->
       <div id="page-settings" class="page-view">
+        <div class="page-heading"><div><h2>系统设置</h2><p>管理显示偏好、模型接入与指令调度。</p></div></div>
+        <div class="settings-grid">
         <div class="card">
           <h3>界面显示设置</h3>
-          <div class="setting-item" style="display: flex; justify-content: space-between; align-items: center;">
-            <span>界面明暗度模式 (浅色/深色)</span>
+          <div class="setting-item appearance-setting">
+            <span>根据使用环境，在浅色与深色模式之间切换。</span>
             <button class="toggle-btn" onclick="toggleTheme()">切换明暗模式</button>
           </div>
         </div>
 
-        <div class="card" style="margin-top: 20px;">
+        <div class="card">
           <h3>AI 大脑配置 (动态模型接入)</h3>
           <div class="setting-box">
             <label>1. 选择底层大模型：</label>
@@ -363,22 +369,23 @@
             </div>
           </div>
           <div class="setting-box">
-            <label>2. 填入对应的 API Key：</label>
+            <label for="apiKeyInput">2. 填入对应的 API Key：</label>
             <input type="password" id="apiKeyInput" placeholder="请输入 DeepSeek 密钥 (通常以 sk- 开头)..." class="api-input">
           </div>
           <div class="setting-box">
             <label>3. 调度严格程度 (Temperature)：</label>
             <div class="radio-group">
-              <label><input type="radio" name="level" value="low" checked> 低 (精准控制，不易出错)</label>
-              <label><input type="radio" name="level" value="medium"> 中 (均衡反馈)</label>
-              <label><input type="radio" name="level" value="high"> 高 (发散思维，适合闲聊)</label>
+              <label><input type="radio" name="level" value="low" checked> <span><strong>精准控制</strong><small>低 · 不易出错</small></span></label>
+              <label><input type="radio" name="level" value="medium"> <span><strong>均衡反馈</strong><small>中 · 平衡表达与控制</small></span></label>
+              <label><input type="radio" name="level" value="high"> <span><strong>发散思维</strong><small>高 · 适合闲聊</small></span></label>
             </div>
           </div>
-          <div style="margin-top: 20px; display: flex; align-items: center; gap: 15px;">
-            <button class="wake-btn" style="margin: 0; background: #007bff;" onclick="saveConfig('permanent')"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-save"></use></svg> 保存配置 (永久)</button>
-            <button class="wake-btn" style="margin: 0; background: #ed8936;" onclick="saveConfig('session')"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-clock"></use></svg> 仅本次使用 (网页关即删)</button>
+          <div class="settings-actions">
+            <button class="wake-btn" style="background: #007bff;" onclick="saveConfig('permanent')"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-save"></use></svg> 保存配置 (永久)</button>
+            <button class="wake-btn" style="background: #ed8936;" title="本标签页关闭后清除密钥" onclick="saveConfig('session')"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-clock"></use></svg> 仅本次使用</button>
             <span id="saveStatus" style="color: #48bb78; font-weight: bold; display: none;"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-check"></use></svg> <span id="saveStatusText">已生效</span></span>
           </div>
+        </div>
         </div>
       </div>
 
@@ -405,7 +412,7 @@
     <button type="button" class="global-voice-close" onclick="hideGlobalVoiceStatus(true)" aria-label="关闭语音状态"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-close"></use></svg></button>
   </div>
 
-  <script src="app.js?v=20260925-report"></script>
+  <script src="app.js?v=20260925-layout"></script>
   <script src="report.js?v=20260925-report"></script>
 </body>
 </html>

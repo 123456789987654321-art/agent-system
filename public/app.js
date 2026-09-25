@@ -261,9 +261,17 @@ function saveConfig(mode) {
 
 function switchPage(pageId, element) {
   document.querySelectorAll('.page-view').forEach(page => page.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(nav => {
+    nav.classList.remove('active');
+    nav.setAttribute('aria-current', 'false');
+  });
   document.getElementById(`page-${pageId}`).classList.add('active');
-  if (element) element.classList.add('active');
+  if (element) {
+    element.classList.add('active');
+    element.setAttribute('aria-current', 'page');
+  }
+  document.querySelector('.main-block').scrollTop = 0;
+  window.scrollTo(0, 0);
   if (pageId === 'weather') fetchWeather();
   if (pageId === 'report') window.DailyReport?.open();
   else window.DailyReport?.leave();
@@ -1109,7 +1117,7 @@ async function fetchHourlyWeather() {
           responsive: true,
           maintainAspectRatio: false, 
           layout: {
-            padding: { top: 88, right: 18, bottom: 8, left: 8 }
+            padding: { top: 12, right: 18, bottom: 8, left: 8 }
           },
           plugins: { legend: { display: false } }, 
           scales: {
