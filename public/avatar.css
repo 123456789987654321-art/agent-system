@@ -1,0 +1,60 @@
+/* Neutral studio framing keeps the actual 3D model legible in both themes. */
+#page-overview .digital-human-card #avatarStage {
+  isolation: isolate;
+  background: radial-gradient(ellipse at 45% 30%, #e4edf3 0%, #bdd0df 65%, #9cb5cb 100%);
+  border: 1px solid #8faac2;
+  box-shadow: inset 0 1px 0 #ffffff80;
+}
+#page-overview .digital-human-card #avatarStage::after { display: none; }
+#page-overview .digital-human-card #avatar-3d {
+  inset: 0 0 var(--avatar-caption-space, 88px);
+  width: 100%; height: auto; min-height: 0;
+  opacity: 1; pointer-events: auto; z-index: 2;
+}
+#avatar-3d canvas { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
+#avatar-3d canvas:active { cursor: grabbing; }
+#avatar-3d canvas:focus-visible { outline: 2px solid #31769e; outline-offset: -4px; border-radius: 10px; }
+.avatar-poster { position: absolute; inset: 0 0 var(--avatar-caption-space, 88px); width: 100%; height: calc(100% - var(--avatar-caption-space, 88px)); object-fit: contain; object-position: center; z-index: 1; }
+.avatar-model-ready .avatar-poster, .avatar-model-ready .avatar-loading { display: none; }
+.avatar-loading { position: absolute; left: 8px; right: 8px; bottom: calc(var(--avatar-caption-space, 88px) + 8px); z-index: 4; display: flex; align-items: center; justify-content: center; gap: 8px; color: #294962; font-size: 11px; }
+.avatar-loading span { padding: 4px 8px; border-radius: 6px; background: #e2ecf4ed; }
+#avatarRetry { border: 1px solid #507896; border-radius: 6px; color: #244964; background: #e3eef6; padding: 4px 8px; cursor: pointer; }
+#avatarRetry[hidden] { display: none; }
+#page-overview .digital-human-card .avatar-caption { background: #e0eaf3f5; border-color: #91abc1; box-shadow: 0 3px 12px #47638120; z-index: 5; }
+#page-overview .digital-human-card .sound-wave { bottom: var(--avatar-caption-space, 88px); z-index: 3; height: 18px; }
+body.dark-mode #page-overview .digital-human-card #avatarStage {
+  background: radial-gradient(ellipse at 45% 30%, #41627b 0%, #203b52 58%, #14273c 100%);
+  border-color: #7294af; box-shadow: inset 0 1px 0 #b5d8ef22;
+}
+body.dark-mode #page-overview .digital-human-card .avatar-caption { background: #162d42f5; border-color: #779bb5; box-shadow: 0 3px 12px #07142655; }
+body.dark-mode .avatar-loading { color: #deedf8; }
+body.dark-mode .avatar-loading span { background: #19354bea; }
+body.dark-mode #avatarRetry { background: #254960; color: #e7f4ff; border-color: #8eabc1; }
+body.dark-mode #avatar-3d canvas:focus-visible { outline-color: #97d5ef; }
+
+/* Timer has its own theme tokens, including idle, paused and near-completion states. */
+#page-overview .projection-screen {
+  --timer-ink: #214866; --timer-sub: #476982; --timer-track: #8ba9c1;
+  --timer-accent: #206887; --timer-wash: #c1d7e7; --timer-alert: #a3492c;
+  --timer-paused: #675691;
+  color: var(--timer-ink);
+  background: radial-gradient(ellipse at 16% 25%, #d3e7ee 0%, transparent 66%), linear-gradient(120deg, #b8d0e2, #a4bfd7);
+  border: 1px solid #769ab9; border-radius: 12px;
+  box-shadow: inset 0 1px 0 #eef7ff99, 0 3px 10px #33557414;
+}
+body.dark-mode #page-overview .projection-screen {
+  --timer-ink: #edf5ff; --timer-sub: #adc9df; --timer-track: #496786;
+  --timer-accent: #8adbd5; --timer-wash: #233f56; --timer-alert: #ffbd90;
+  --timer-paused: #ccb7ef;
+  background: radial-gradient(ellipse at 16% 25%, #285065 0%, transparent 65%), linear-gradient(120deg, #1e354e, #17263e);
+  border-color: #708daa; box-shadow: inset 0 1px 0 #d1e9ff18, 0 3px 10px #060e202b;
+}
+#page-overview .projection-screen #taskName { color: var(--timer-ink); font-weight: 600; letter-spacing: .03em; }
+#page-overview .projection-screen #timeLeft { color: var(--timer-ink); font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: .04em; line-height: 1.35; }
+#page-overview .projection-screen #taskScheduleHint { color: var(--timer-sub); }
+#page-overview .projection-screen[data-state="paused"] #timeLeft { color: var(--timer-paused); }
+#page-overview .projection-screen[data-state="ending"] #timeLeft { color: var(--timer-alert); }
+#page-overview .projection-screen[data-state="idle"] #timeLeft { color: var(--timer-sub); }
+@media (prefers-reduced-motion: reduce) {
+  #page-overview .digital-human-card #avatar-3d, #page-overview .sound-wave span { animation: none; transition: none; }
+}

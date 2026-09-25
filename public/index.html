@@ -9,8 +9,9 @@
   <link rel="stylesheet" href="layout.css?v=20260925-layout">
   <link rel="stylesheet" href="dashboard.css?v=20260926-fit">
   <link rel="stylesheet" href="dark.css?v=20260926-depth">
-  <!-- 引入谷歌 3D 渲染引擎 -->
-  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+  <link rel="stylesheet" href="avatar.css?v=20260926-studio">
+  <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js"}}</script>
+  <script type="module" src="avatar.js?v=20260926-studio"></script>
   <!-- 引入 Chart.js 用于绘制折线图 -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -57,7 +58,7 @@
           <div class="card projection-card">
             <h3>任务计时</h3>
             <div class="projection-screen">
-              <canvas id="timerCanvas" width="200" height="200"></canvas>
+              <canvas id="timerCanvas" width="300" height="300" role="img" aria-label="等待任务"></canvas>
               <div class="task-info" id="taskInfo">
                 <div id="taskName">等待任务执行</div>
                 <div id="timeLeft">--:--</div>
@@ -109,69 +110,9 @@
                 <button type="button" class="task-alert-action" onclick="dismissPendingAlert()">忽略</button>
               </div>
               <div class="avatar-3d-wrapper" id="avatarStage">
-                <div class="avatar-grid"></div>
-                <div class="avatar-aura"></div>
-                <div class="orbit orbit-a"></div>
-                <div class="orbit orbit-b"></div>
-                <div class="orbit orbit-c"></div>
-                <div class="hologram-base" id="hologramBase"></div>
-                <div class="human-silhouette" aria-hidden="true">
-                  <div class="figure-shadow"></div>
-
-                  <div class="figure-leg figure-leg-left"><span class="figure-shoe"></span></div>
-                  <div class="figure-leg figure-leg-right"><span class="figure-shoe"></span></div>
-
-                  <div class="figure-torso">
-                    <div class="figure-shirt"></div>
-                    <div class="figure-vest"></div>
-                    <div class="figure-tie"></div>
-                  </div>
-
-                  <div class="figure-arm figure-arm-left">
-                    <span class="figure-sleeve"></span>
-                    <span class="figure-hand"></span>
-                  </div>
-                  <div class="figure-arm figure-arm-right">
-                    <span class="figure-sleeve"></span>
-                    <span class="figure-hand"></span>
-                  </div>
-
-                  <div class="figure-neck"></div>
-                  <div class="figure-head">
-                    <span class="figure-ear figure-ear-left"></span>
-                    <span class="figure-ear figure-ear-right"></span>
-                    <span class="figure-hair"></span>
-                    <span class="figure-brow figure-brow-left"></span>
-                    <span class="figure-brow figure-brow-right"></span>
-                    <span class="figure-eye figure-eye-left"><i></i></span>
-                    <span class="figure-eye figure-eye-right"><i></i></span>
-                    <span class="figure-nose"></span>
-                    <span class="figure-mouth"></span>
-                  </div>
-                </div>
-
-                <model-viewer
-                  id="avatar-3d"
-                  src="https://models.readyplayer.me/64bfa15f0b2f3f0b7b4b1f1e.glb"
-                  data-fallback-src="https://three.ws/avatars/michelle.glb"
-                  data-final-fallback-src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r170/examples/models/gltf/Xbot.glb"
-                  alt="数字人管家"
-                  camera-controls
-                  touch-action="none"
-                  autoplay
-                  auto-rotate
-                  rotation-per-second="6deg"
-                  shadow-intensity="1.6"
-                  shadow-softness="0.8"
-                  exposure="1.1"
-                  tone-mapping="neutral"
-                  environment-image="neutral"
-                  camera-orbit="-12deg 76deg auto"
-                  min-camera-orbit="auto 55deg auto"
-                  max-camera-orbit="auto 105deg auto"
-                  field-of-view="24deg"
-                  interaction-prompt="none">
-                </model-viewer>
+                <img class="avatar-poster" src="assets/home-assistant.webp" alt="数字管家静态形象">
+                <div id="avatar-3d"></div>
+                <div class="avatar-loading" role="status"><span id="avatarLoadStatus">正在加载三维形象</span><button id="avatarRetry" type="button" hidden>重新加载</button></div>
 
                 <div class="device-demo-layer" id="deviceDemoLayer" aria-live="polite"></div>
 
@@ -413,7 +354,7 @@
     <button type="button" class="global-voice-close" onclick="hideGlobalVoiceStatus(true)" aria-label="关闭语音状态"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-close"></use></svg></button>
   </div>
 
-  <script src="app.js?v=20260926-depth"></script>
+  <script src="app.js?v=20260926-studio"></script>
   <script src="report.js?v=20260926-copy"></script>
 </body>
 </html>

@@ -22,7 +22,7 @@ let weatherRefreshTimer = null;
 const WEATHER_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 let avatarRecognition = null;
 let avatarSilenceTimer = null;
-let avatarModelSourceIndex = 0;
+let timerDisplayState = { percent: 0, isAlert: false, state: "idle" };
 let speechInProgress = false;
 let globalVoiceHideTimer = null;
 const AVATAR_INITIAL_TIMEOUT_MS = 6000;
@@ -296,17 +296,6 @@ function showDeviceCategory(category) {
   });
 }
 
-// Fit the CSS fallback figure to the space above its caption.
-const dashboardStage = document.getElementById('avatarStage');
-const dashboardCaption = dashboardStage.querySelector('.avatar-caption');
-const dashboardFigureObserver = new ResizeObserver(() => {
-  const captionSpace = dashboardCaption.offsetHeight + 18;
-  const scale = Math.max(0.05, Math.min(.95, (dashboardStage.clientHeight - captionSpace - 12) / 470, dashboardStage.clientWidth / 270));
-  dashboardStage.style.setProperty('--dashboard-figure-scale', String(scale));
-  dashboardStage.style.setProperty('--dashboard-caption-space', captionSpace + 'px');
-});
-dashboardFigureObserver.observe(dashboardStage);
-dashboardFigureObserver.observe(dashboardCaption);
 const dashboardTimerScreen = document.querySelector('.projection-screen');
 const dashboardTimerObserver = new ResizeObserver(() => {
   const size = Math.max(16, Math.min(150, dashboardTimerScreen.clientHeight - 12, dashboardTimerScreen.clientWidth * .3));
@@ -317,6 +306,7 @@ dashboardTimerObserver.observe(dashboardTimerScreen);
 function toggleTheme() {
   document.body.classList.toggle('dark-mode');
   applyWeatherChartTheme();
+  drawCanvas(timerDisplayState.percent, timerDisplayState.isAlert, timerDisplayState.state);
 }
 
 function applyWeatherChartTheme() {
@@ -652,57 +642,6 @@ async function toggleDevice(deviceKey, deviceName) {
     checkbox.checked = !checkbox.checked; // 仅当网络请求彻底失败时弹回
     delete pendingDeviceStates[deviceKey]; // 解除锁定
   }
-}
-
-function setAvatarAnimation(preferredNames = []) {
-  const avatar3D = document.getElementById('avatar-3d');
-  const available = avatar3D?.availableAnimations || [];
-  if (!available.length) return;
-
-  const normalized = available.map(name => String(name).toLowerCase());
-  let matchIndex = -1;
-
-  for (const preferred of preferredNames) {
-    matchIndex = normalized.findIndex(name => name === preferred);
-    if (matchIndex >= 0) break;
-  }
-
-  if (matchIndex < 0) {
-    for (const preferred of preferredNames) {
-      matchIndex = normalized.findIndex(name => name.includes(preferred));
-      if (matchIndex >= 0) break;
-    }
-  }
-
-  if (matchIndex >= 0) avatar3D.setAttribute('animation-name', available[matchIndex]);
-}
-
-function initDigitalHuman() {
-  const avatar3D = document.getElementById('avatar-3d');
-  const stage = document.getElementById('avatarStage');
-  if (!avatar3D) return;
-
-  const modelSources = [
-    avatar3D.getAttribute('src'),
-    avatar3D.dataset.fallbackSrc,
-    avatar3D.dataset.finalFallbackSrc
-  ].filter(Boolean);
-
-  avatar3D.addEventListener('load', () => {
-    if (stage) stage.classList.add('avatar-model-ready');
-    setAvatarAnimation(['idle', 'stand', 'standing']);
-  });
-
-  avatar3D.addEventListener('error', () => {
-    avatarModelSourceIndex += 1;
-    if (avatarModelSourceIndex >= modelSources.length) {
-      if (stage) stage.classList.add('avatar-model-failed');
-      return;
-    }
-
-    if (stage) stage.classList.remove('avatar-model-ready');
-    avatar3D.setAttribute('src', modelSources[avatarModelSourceIndex]);
-  });
 }
 
 function showGlobalVoiceStatus(title, text, state = 'idle') {
@@ -1056,7 +995,6 @@ async function triggerFaceDetect() {
 function agentSpeak(text) {
   window.DailyReport?.stopSpeech();
   const statusEl = document.querySelector('.avatar-status');
-  const hologramBase = document.getElementById('hologramBase');
   const stage = document.getElementById('avatarStage');
   const titleEl = document.getElementById('avatarCaptionTitle');
   
@@ -1066,8 +1004,6 @@ function agentSpeak(text) {
   if (statusEl) statusEl.innerText = text;
   if (titleEl) titleEl.innerText = '管家回应中';
   if (stage) stage.classList.add('speaking');
-  if (hologramBase) hologramBase.classList.add('speaking'); 
-  setAvatarAnimation(['wave', 'talk', 'talking', 'idle']);
 
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'zh-CN'; 
@@ -1077,9 +1013,7 @@ function agentSpeak(text) {
   utterance.onend = () => {
     speechInProgress = false;
     if (stage) stage.classList.remove('speaking');
-    if (hologramBase) hologramBase.classList.remove('speaking');
     if (titleEl) titleEl.innerText = getAgentIdleTitle();
-    setAvatarAnimation(['idle', 'stand', 'standing']);
     setTimeout(flushDeviceDemoQueue, 240);
     hideGlobalVoiceStatus();
     setTimeout(() => {
@@ -1092,9 +1026,7 @@ function agentSpeak(text) {
   utterance.onerror = () => {
     speechInProgress = false;
     if (stage) stage.classList.remove('speaking');
-    if (hologramBase) hologramBase.classList.remove('speaking');
     if (titleEl) titleEl.innerText = getAgentIdleTitle();
-    setAvatarAnimation(['idle', 'stand', 'standing']);
     setTimeout(flushDeviceDemoQueue, 240);
     hideGlobalVoiceStatus();
   };
@@ -1102,7 +1034,6 @@ function agentSpeak(text) {
   window.speechSynthesis.speak(utterance);
 }
 
-initDigitalHuman();
 initApiKeyWatcher();
 updateAgentConnectionState();
 
@@ -1355,7 +1286,7 @@ function renderUI(state) {
         ? '已暂停'
         : (state.activeTask.startTime && state.activeTask.endTime ? state.activeTask.startTime + ' - ' + state.activeTask.endTime : '当前任务');
     }
-    drawCanvas(1 - (rem / state.activeTask.totalSeconds), rem <= 300);
+    drawCanvas(1 - (rem / Math.max(1, state.activeTask.totalSeconds)), rem <= 300, state.activeTask.paused ? 'paused' : rem <= 300 ? 'ending' : 'active');
     renderPendingOverlay(pendingTasks);
   } else if (pendingTasks.length) {
     const nextTask = pendingTasks[0];
@@ -1363,7 +1294,7 @@ function renderUI(state) {
     if (taskNameEl) taskNameEl.innerText = nextTask.name;
     if (timeLeftEl) timeLeftEl.innerText = nextTask.scheduledTime || '等待';
     if (scheduleHintEl) scheduleHintEl.innerText = '预计执行';
-    drawCanvas(0, false);
+    drawCanvas(0, false, 'scheduled');
     renderPendingOverlay(pendingTasks.slice(1));
   } else {
     taskInfo?.classList.remove('scheduled-center');
@@ -1376,9 +1307,40 @@ function renderUI(state) {
   
 }
 
-function drawCanvas(percent, isAlert) {
+function drawCanvas(percent, isAlert, state = 'idle') {
+  percent = Number.isFinite(percent) ? Math.max(0, Math.min(1, percent)) : 0;
+  timerDisplayState = { percent, isAlert, state };
+  const screen = document.querySelector('.projection-screen');
+  screen.dataset.state = state;
+  const style = getComputedStyle(screen);
+  const color = name => style.getPropertyValue('--timer-' + name).trim();
+  const accent = color(state === 'paused' ? 'paused' : isAlert ? 'alert' : 'accent');
+  const size = canvas.width;
+  ctx.setTransform(size / 200, 0, 0, size / 200, 0, 0);
   ctx.clearRect(0, 0, 200, 200);
-  ctx.beginPath(); ctx.arc(100, 100, 80, 0, 2 * Math.PI); ctx.strokeStyle = document.body.classList.contains('dark-mode') ? '#6683a5' : '#333'; ctx.lineWidth = 10; ctx.stroke();
-  ctx.beginPath(); ctx.arc(100, 100, 80, -0.5 * Math.PI, (2 * Math.PI * percent) - 0.5 * Math.PI);
-  ctx.strokeStyle = isAlert ? '#ff3333' : '#00ffff'; ctx.lineWidth = 10; ctx.stroke();
+  ctx.beginPath(); ctx.arc(100, 100, 68, 0, Math.PI * 2);
+  ctx.fillStyle = color('wash'); ctx.fill();
+  ctx.beginPath(); ctx.arc(100, 100, 81, 0, Math.PI * 2);
+  ctx.strokeStyle = color('track'); ctx.lineWidth = 8; ctx.stroke();
+  ctx.lineCap = 'round';
+  if (percent > 0) {
+    ctx.beginPath(); ctx.arc(100, 100, 81, -Math.PI / 2, Math.PI * 2 * percent - Math.PI / 2);
+    ctx.strokeStyle = accent; ctx.lineWidth = 8; ctx.stroke();
+  }
+  ctx.fillStyle = accent; ctx.strokeStyle = accent;
+  if (state === 'idle' || state === 'scheduled') {
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(100, 89, 22, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(100, 75); ctx.lineTo(100, 89); ctx.lineTo(111, 96); ctx.stroke();
+  } else if (state === 'paused') {
+    ctx.fillRect(86, 72, 9, 29); ctx.fillRect(105, 72, 9, 29);
+  } else {
+    ctx.font = '600 30px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(Math.round(percent * 100) + '%', 100, 90);
+  }
+  const label = { idle:'待命', scheduled:'已预约', paused:'已暂停', ending:'即将结束', active:'进行中' }[state] || '进行中';
+  ctx.font = '500 16px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = color('sub'); ctx.fillText(label, 100, 130);
+  canvas.setAttribute('aria-label', label + (state === 'active' || state === 'ending' || state === 'paused' ? '，已完成 ' + Math.round(percent * 100) + '%' : ''));
 }
+drawCanvas(0, false);
