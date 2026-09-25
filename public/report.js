@@ -63,22 +63,21 @@ window.DailyReport = (() => {
       ? `今天共记录 ${counts.deviceChanges} 次设备状态变更。目前系统中有 ${data.devicesOn} 个设备处于开启状态，具体操作见下方活动记录。`
       : `今天尚无设备状态变更记录。目前系统中有 ${data.devicesOn} 个设备处于开启状态。`;
     const weather = weatherText(lastWeather);
-    const note = '任务计时结束不代表家务已实际完成；设备操作反映系统记录的状态。报告从记录功能启用后开始积累。';
     const groups = [['今日天气', weather], ['任务与提醒', taskText], ['家电使用', deviceText]];
     const timelineEvents = events.slice(-100).reverse();
     const timeline = timelineEvents.length
       ? `<ol class="report-timeline">${timelineEvents.map(event => `<li><time>${escape(clock(event.at))}</time><span>${escape(eventText(event))}</span></li>`).join('')}</ol>`
-      : '<p class="report-empty">暂无活动记录，今天的安排从这里开始。</p>';
+      : '<p class="report-empty">暂无活动记录。</p>';
     const content = `<div class="report-reading-header"><h2>${escape(data.date)} 居家日报</h2><p class="report-meta">更新于 ${escape(clock(data.generatedAt))}</p></div>
       ${summary ? `<p class="report-summary">${escape(summary)}</p>` : ''}
       <div class="report-sections">${groups.map(([title, text]) => `<section><h3>${title}</h3><p>${escape(text)}</p></section>`).join('')}</div>
       <section class="report-activity"><h3>今日活动记录 <span>${events.length} 条${events.length > 100 ? ' · 展示最近 100 条' : ''}</span></h3>${timeline}</section>
-      <p class="report-note">${escape(note)}<br>开始记录：${escape(dateTime(data.trackingStartedAt))}${data.storageWarning ? `<br>${escape(data.storageWarning)}` : ''}</p>`;
+      ${data.storageWarning ? `<p class="report-note">${escape(data.storageWarning)}</p>` : ''}`;
     for (const id of ['reportContent', 'reportExpandedContent']) document.getElementById(id).innerHTML = content;
     const labels = [['今日安排', counts.tasksCreated, '项'], ['计时结束', counts.tasksFinished, '项'], ['提醒到点', counts.remindersDue, '条'], ['设备操作', counts.deviceChanges, '次']];
     document.getElementById('reportStats').innerHTML = labels.map(([label, count, unit]) => `<div class="report-stat"><span>${label}</span><strong>${count}<small> ${unit}</small></strong></div>`).join('');
     // Read the same content shown on screen, including the visible activity log.
-    speechText = `${data.date}，居家日报。${summary}\n${groups.map(([title, text]) => `${title}。${text}`).join('\n')}\n今日活动记录。${timelineEvents.length ? timelineEvents.map(event => `${clock(event.at)}，${eventText(event)}。`).join('\n') : '暂无活动记录。'}${events.length > 100 ? '以上为最近一百条活动。' : ''}\n${note}`;
+    speechText = `${data.date}，居家日报。${summary}\n${groups.map(([title, text]) => `${title}。${text}`).join('\n')}\n今日活动记录。${timelineEvents.length ? timelineEvents.map(event => `${clock(event.at)}，${eventText(event)}。`).join('\n') : '暂无活动记录。'}${events.length > 100 ? '以上为最近一百条活动。' : ''}${data.storageWarning ? '\n' + data.storageWarning : ''}`;
     document.querySelectorAll('[data-report-action]').forEach(button => { button.disabled = false; });
   }
 
