@@ -260,6 +260,7 @@ function saveConfig(mode) {
 }
 
 function switchPage(pageId, element) {
+  document.body.classList.toggle('dashboard-fixed', pageId === 'overview' || pageId === 'appliances');
   document.querySelectorAll('.page-view').forEach(page => page.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(nav => {
     nav.classList.remove('active');
@@ -276,6 +277,42 @@ function switchPage(pageId, element) {
   if (pageId === 'report') window.DailyReport?.open();
   else window.DailyReport?.leave();
 }
+
+
+// Compact-screen panels keep every control available without page scrolling.
+function showOverviewPanel(panel) {
+  document.getElementById('page-overview').classList.toggle('is-avatar-view', panel === 'avatar');
+  document.querySelectorAll('[data-overview-panel]').forEach(button => {
+    button.setAttribute('aria-pressed', String(button.dataset.overviewPanel === panel));
+  });
+}
+
+function showDeviceCategory(category) {
+  document.querySelectorAll('.device-category').forEach(card => {
+    card.classList.toggle('is-selected', card.id === 'devices-' + category);
+  });
+  document.querySelectorAll('[data-device-category]').forEach(button => {
+    button.setAttribute('aria-pressed', String(button.dataset.deviceCategory === category));
+  });
+}
+
+// Fit the CSS fallback figure to the space above its caption.
+const dashboardStage = document.getElementById('avatarStage');
+const dashboardCaption = dashboardStage.querySelector('.avatar-caption');
+const dashboardFigureObserver = new ResizeObserver(() => {
+  const captionSpace = dashboardCaption.offsetHeight + 18;
+  const scale = Math.max(0.05, Math.min(.95, (dashboardStage.clientHeight - captionSpace - 12) / 470, dashboardStage.clientWidth / 270));
+  dashboardStage.style.setProperty('--dashboard-figure-scale', String(scale));
+  dashboardStage.style.setProperty('--dashboard-caption-space', captionSpace + 'px');
+});
+dashboardFigureObserver.observe(dashboardStage);
+dashboardFigureObserver.observe(dashboardCaption);
+const dashboardTimerScreen = document.querySelector('.projection-screen');
+const dashboardTimerObserver = new ResizeObserver(() => {
+  const size = Math.max(16, Math.min(150, dashboardTimerScreen.clientHeight - 12, dashboardTimerScreen.clientWidth * .3));
+  dashboardTimerScreen.style.setProperty('--dashboard-timer-size', size + 'px');
+});
+dashboardTimerObserver.observe(dashboardTimerScreen);
 
 function toggleTheme() { document.body.classList.toggle('dark-mode'); }
 
