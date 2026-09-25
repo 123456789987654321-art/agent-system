@@ -26,6 +26,7 @@
 .report-reading-header h2 { font-size: 24px; line-height: 1.45; color: var(--text-main); }
 .report-meta { margin-top: 7px; font-size: 12px; color: var(--text-sub); }
 .report-summary { margin: 22px 0; padding: 16px 18px; border-left: 3px solid #6299d0; border-radius: 0 8px 8px 0; background: rgba(88, 143, 201, 0.08); font-size: 15px; line-height: 1.9; }
+.report-reading-header + .report-sections { margin-top: 22px; }
 .report-sections { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
 .report-sections h3, .report-activity h3 { font-size: 15px; color: var(--text-main); }
 .report-sections p { font-size: 14px; line-height: 1.95; color: var(--text-sub); overflow-wrap: anywhere; }

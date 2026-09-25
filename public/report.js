@@ -51,7 +51,7 @@ window.DailyReport = (() => {
     const finishedNames = names.slice(0, 6).join('、') + (names.length > 6 ? '等' : '');
     const summary = events.length
       ? `截至 ${clock(data.generatedAt)}，今天记录了 ${counts.tasksCreated} 项新任务，${counts.tasksFinished} 项任务计时结束，${counts.remindersDue} 条提醒到点，以及 ${counts.deviceChanges} 次设备状态变更。`
-      : '今天还没有记录到任务或设备操作。安排任务或操作家电后，这里会自动整理当天的活动。';
+      : '';
     let taskText = finished.length ? `已结束计时的任务包括：${finishedNames}。` : '今天暂时没有任务计时结束。';
     if (activeTask) taskText += `当前${activeTask.paused ? '已暂停' : '正在进行'}${activeTask.reminder ? '提醒' : '任务'}「${activeTask.name}」，剩余约 ${duration(activeTask.remaining)}。`;
     else taskText += '目前没有正在计时的任务。';
@@ -69,8 +69,8 @@ window.DailyReport = (() => {
     const timeline = timelineEvents.length
       ? `<ol class="report-timeline">${timelineEvents.map(event => `<li><time>${escape(clock(event.at))}</time><span>${escape(eventText(event))}</span></li>`).join('')}</ol>`
       : '<p class="report-empty">暂无活动记录，今天的安排从这里开始。</p>';
-    const content = `<div class="report-reading-header"><span class="report-kicker">DAILY HOME REPORT</span><h2>${escape(data.date)} 居家日报</h2><p class="report-meta">${escape(data.timeZone)} · 更新于 ${escape(clock(data.generatedAt))}</p></div>
-      <p class="report-summary">${escape(summary)}</p>
+    const content = `<div class="report-reading-header"><h2>${escape(data.date)} 居家日报</h2><p class="report-meta">更新于 ${escape(clock(data.generatedAt))}</p></div>
+      ${summary ? `<p class="report-summary">${escape(summary)}</p>` : ''}
       <div class="report-sections">${groups.map(([title, text]) => `<section><h3>${title}</h3><p>${escape(text)}</p></section>`).join('')}</div>
       <section class="report-activity"><h3>今日活动记录 <span>${events.length} 条${events.length > 100 ? ' · 展示最近 100 条' : ''}</span></h3>${timeline}</section>
       <p class="report-note">${escape(note)}<br>开始记录：${escape(dateTime(data.trackingStartedAt))}${data.storageWarning ? `<br>${escape(data.storageWarning)}` : ''}</p>`;

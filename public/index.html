@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>居家管理辅助控制系统</title>
+  <title>智能家居中控系统</title>
   <link rel="stylesheet" href="style.css?v=20260925-contrast">
-  <link rel="stylesheet" href="report.css?v=20260925-contrast">
+  <link rel="stylesheet" href="report.css?v=20260925-cn">
   <link rel="stylesheet" href="layout.css?v=20260925-layout">
   <!-- 引入谷歌 3D 渲染引擎 -->
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
@@ -29,8 +29,8 @@
     <!-- 右侧主内容区 -->
     <main class="main-block">
       <header class="top-header-center">
-        <div class="header-copy"><h1>居家管理 Agent 中控台</h1>
-        <div class="subtitle">AI赋能设计，全屋智能托管</div></div>
+        <div class="header-copy"><h1>智能家居中控系统</h1>
+        <div class="subtitle">智能协同，全屋托管</div></div>
         <div class="weather-time">
           <span id="projDate">--</span>
           <span id="projClock">--:--:--</span>
@@ -91,8 +91,7 @@
           <div class="card avatar-card digital-human-card" id="digitalHumanCard">
             <div class="avatar-card-head">
               <div>
-                <span class="avatar-kicker">WEB DIGITAL HUMAN</span>
-                <h3>AI 3D 数字人管家</h3>
+                <h3>数字人管家</h3>
               </div>
               <div class="avatar-online" id="avatarOnlineBadge"><span class="avatar-online-dot"></span><span class="avatar-online-text">在线</span></div>
             </div>
@@ -150,7 +149,7 @@
                   src="https://models.readyplayer.me/64bfa15f0b2f3f0b7b4b1f1e.glb"
                   data-fallback-src="https://three.ws/avatars/michelle.glb"
                   data-final-fallback-src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r170/examples/models/gltf/Xbot.glb"
-                  alt="写实 3D AI 数字人管家"
+                  alt="数字人管家"
                   camera-controls
                   touch-action="none"
                   autoplay
@@ -175,11 +174,6 @@
                   <span></span><span></span><span></span><span></span>
                 </div>
 
-                <div class="avatar-hud">
-                  <span class="hud-label">AI BUTLER</span>
-                  <span class="hud-line"></span>
-                  <span class="hud-value">HOME AGENT</span>
-                </div>
 
                 <div class="avatar-caption">
                   <span class="caption-dot"></span>
@@ -334,7 +328,7 @@
       <!-- 页面 4：今日报告 -->
       <div id="page-report" class="page-view report-page">
         <div class="report-toolbar">
-          <div><h2>今日居家报告</h2><p>回顾今天的天气、任务与家电活动。</p></div>
+          <div><h2>今日居家报告</h2></div>
           <div class="report-actions">
             <button type="button" class="report-button" onclick="DailyReport.refresh()"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925-report#icon-refresh"></use></svg> 刷新</button>
             <button type="button" class="report-button" data-report-action disabled onclick="DailyReport.expand()" aria-haspopup="dialog"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925-report#icon-expand"></use></svg> 放大阅读</button>
@@ -359,7 +353,7 @@
         </div>
 
         <div class="card">
-          <h3>AI 大脑配置 (动态模型接入)</h3>
+          <h3>智能模型配置</h3>
           <div class="setting-box">
             <label>1. 选择底层大模型：</label>
             <div class="radio-group">
@@ -412,7 +406,7 @@
     <button type="button" class="global-voice-close" onclick="hideGlobalVoiceStatus(true)" aria-label="关闭语音状态"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-close"></use></svg></button>
   </div>
 
-  <script src="app.js?v=20260925-layout"></script>
-  <script src="report.js?v=20260925-report"></script>
+  <script src="app.js?v=20260925-cn"></script>
+  <script src="report.js?v=20260925-cn"></script>
 </body>
 </html>

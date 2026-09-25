@@ -908,7 +908,7 @@ function closeDeviceDemo(scene, stage, layer, action) {
 }
 
 function greetDigitalHuman() {
-  agentSpeak("您好，我是您的 3D AI 管家。您可以让我控制灯光、门窗、家电，或者为您安排定时任务。");
+  agentSpeak("您好，我是您的数字人管家。您可以让我控制灯光、门窗、家电，或者为您安排定时任务。");
 }
 
 function startAvatarListening() {
@@ -1192,7 +1192,7 @@ async function fetchWeather() {
 
       const updated = document.getElementById('weather-updated');
       if (updated) updated.innerText = '天气数据时间：' + (data.current.time || '未知').replace('T', ' ')
-        + '（' + (data.timezone || '当地时间') + '） · 获取时间：'
+        + '（当地时间） · 获取时间：'
         + new Date(todayWeatherSnapshot.fetchedAt).toLocaleTimeString('zh-CN', { hour12: false })
         + ' · 每 5 分钟自动更新';
       return todayWeatherSnapshot;
