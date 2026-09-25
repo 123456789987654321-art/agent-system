@@ -104,8 +104,14 @@ function formatLocationAddress(ad, approximate = false) {
   const province = ad.state || ad.province;
   const municipality = /^(北京|天津|上海|重庆)市?$/.test(province || '') ? province : '';
   const city = ad.city || ad.municipality || ad.state_district || municipality;
-  const county = ad.county || ad.city_district || ad.district || ad.borough
-    || (/(县|区|旗|市)$/.test(ad.suburb || '') ? ad.suburb : '');
+  const isDistinctArea = value => typeof value === 'string' && value.trim()
+    && value.trim() !== province && value.trim() !== city;
+  // OSM 的字段名称不直接对应中国行政级别，县级名称也可能出现在 town 等字段。
+  const explicitCounty = [ad.county, ad.city_district, ad.district, ad.borough].find(isDistinctArea);
+  const namedCounty = [ad.suburb, ad.town, ad.municipality, ad.village, ad.subdivision]
+    .find(value => isDistinctArea(value) && /(县|区|旗|市)$/.test(value.trim())
+      && !/(社区|小区|园区|开发区)$/.test(value.trim()));
+  const county = explicitCounty || namedCounty;
   // IP 的城市中心坐标无法证明访问者所在的县/区。
   if (typeof ad.country !== 'string' || !ad.country.trim()) throw new Error('地址国家信息缺失');
   const parts = [ad.country, province, city, approximate ? '未确定' : county];
