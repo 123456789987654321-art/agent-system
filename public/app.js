@@ -107,16 +107,13 @@ function formatLocationAddress(ad, approximate = false) {
   const county = ad.county || ad.city_district || ad.district || ad.borough
     || (/(县|区|旗|市)$/.test(ad.suburb || '') ? ad.suburb : '');
   // IP 的城市中心坐标无法证明访问者所在的县/区。
-  const parts = [ad.country, province, city, approximate ? '未确定' : county || '未确定'];
-  if (parts.slice(0, 3).some(part => typeof part !== 'string' || !part.trim())) {
-    throw new Error('地址行政区划不完整');
-  }
-  return parts.map(part => part.trim()).join('-');
+  if (typeof ad.country !== 'string' || !ad.country.trim()) throw new Error('地址国家信息缺失');
+  const parts = [ad.country, province, city, approximate ? '未确定' : county];
+  return parts.map(part => typeof part === 'string' && part.trim() ? part.trim() : '未确定').join('-');
 }
 
 async function reverseGeocode(lat, lon, approximate = false) {
-  const url = 'https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat
-    + '&lon=' + lon + '&zoom=14&addressdetails=1&accept-language=zh-CN';
+  const url = '/api/location/address?lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lon);
   const data = await fetchJsonWithTimeout(url);
   return formatLocationAddress(data.address, approximate);
 }
@@ -142,7 +139,9 @@ async function initLocationAndWeather() {
   const locDisplay = document.getElementById('location-display');
   const meta = document.getElementById('location-meta');
   const button = document.getElementById('location-button');
+  const coordinates = document.getElementById('location-coordinates');
   if (locDisplay) locDisplay.innerText = '正在定位…';
+  if (coordinates) coordinates.innerText = '经纬度：正在获取…';
   if (meta) meta.innerText = '正在获取浏览器位置';
   if (button) { button.disabled = true; button.innerText = '定位中…'; }
   let positionUpdated = false;
@@ -158,6 +157,7 @@ async function initLocationAndWeather() {
     myLon = position.lon;
     currentLocation = { ...position, updatedAt: Date.now() };
     positionUpdated = true;
+    if (coordinates) coordinates.innerText = '经度：' + myLon.toFixed(6) + ' · 纬度：' + myLat.toFixed(6);
     weatherLocationVersion += 1;
     weatherFetchPromise = null;
     todayWeatherSnapshot = null;
@@ -194,6 +194,7 @@ async function initLocationAndWeather() {
       if (meta) meta.innerText += ' · 已获取坐标，请稍后重试更新';
     } else {
       if (locDisplay) locDisplay.innerText = '定位失败，请重新定位';
+      if (coordinates) coordinates.innerText = '经纬度：未获取';
       // 不把默认城市或上一次位置的天气冒充为当前位置天气。
       myLat = null;
       myLon = null;

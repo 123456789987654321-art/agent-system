@@ -4,9 +4,15 @@ const http = require('http');
 const path = require('path');
 const WebSocket = require('ws');
 const axios = require('axios');
+const { createAddressLookup } = require('./services/location-address');
+const lookupAddress = createAddressLookup();
 
 const app = express();
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders(res, filePath) {
+    if (/\.(html|js|css)$/i.test(filePath)) res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+  }
+}));
 app.use(express.json());
 
 const server = http.createServer(app);
@@ -726,6 +732,23 @@ app.post('/api/report_read', (req, res) => {
   broadcastState();
   res.json({ success: true, reports: homeState.reports });
 });
+// 同站点地址解析，避免要求访问者的浏览器直接连接外部地理服务。
+app.get('/api/location/address', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const { lat, lon } = req.query;
+  if (typeof lat !== 'string' || typeof lon !== 'string' || !lat.trim() || !lon.trim()) {
+    return res.status(400).json({ error: '无效的定位坐标' });
+  }
+  try {
+    const address = await lookupAddress(Number(lat), Number(lon));
+    res.json({ address });
+  } catch (error) {
+    const status = error.statusCode || 502;
+    if (status === 429) res.set('Retry-After', '1');
+    res.status(status).json({ error: error.message });
+  }
+});
+
 // 浏览器把定位同步给服务端，用于生成每日报里的天气
 app.post('/api/location', (req, res) => {
   const { lat, lon, source } = req.body || {};

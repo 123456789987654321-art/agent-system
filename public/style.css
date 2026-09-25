@@ -683,6 +683,9 @@ input:checked + .slider:before { transform: translateX(22px); }
 .weather-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
 .weather-location { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-left: auto; min-width: 0; max-width: 100%; }
 .location-copy { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.location-attribution { display: block; margin-top: 4px; color: var(--text-sub); font-size: 11px; }
+.location-attribution a { color: inherit; }
+#location-coordinates { color: var(--text-main); font-size: 13px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 #location-meta, .weather-updated { color: var(--text-sub); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 .weather-updated { margin-top: 8px; }
 #location-display { font-size: 15px; color: #007bff; font-weight: bold; overflow-wrap: anywhere; }

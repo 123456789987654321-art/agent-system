@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>居家管理辅助控制系统</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20260925-location-coordinates">
   <!-- 引入谷歌 3D 渲染引擎 -->
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
   <!-- 引入 Chart.js 用于绘制折线图 -->
@@ -295,6 +295,7 @@
             <div class="weather-location">
               <div class="location-copy">
                 <span id="location-display" role="status" aria-live="polite">正在定位…</span>
+                <small id="location-coordinates">经纬度：正在获取…</small>
                 <small id="location-meta">浏览器定位优先，API 网络定位备用</small>
               </div>
               <button id="location-button" class="location-button" type="button" onclick="initLocationAndWeather()">定位</button>
@@ -302,6 +303,7 @@
           </div>
           <div id="weather-container" class="weather-grid">正在确定位置...</div>
           <div id="weather-updated" class="weather-updated" role="status">等待定位后获取天气</div>
+          <small class="location-attribution">地址数据：<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a></small>
         </div>
 
         <div class="card weather-trend-card">
@@ -419,6 +421,6 @@
       <div class="report-modal-body" id="reportModalBody"></div>
     </div>
   </div>
-  <script src="app.js"></script>
+  <script src="app.js?v=20260925-location-coordinates"></script>
 </body>
 </html>
