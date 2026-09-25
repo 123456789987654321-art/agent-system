@@ -1,0 +1,69 @@
+/* Line-only device feedback shares the dashboard palette in both themes. */
+#avatarStage {
+  --feedback-surface: #dce9f2f5;
+  --feedback-border: #7496b1;
+  --feedback-text: #23465e;
+  --feedback-muted: #4e6b82;
+  --feedback-accent: #177367;
+  --feedback-width: clamp(90px, 30%, 132px);
+}
+body.dark-mode #avatarStage {
+  --feedback-surface: #183249f5;
+  --feedback-border: #7495af;
+  --feedback-text: #e1edf8;
+  --feedback-muted: #afc5d8;
+  --feedback-accent: #8cdbd0;
+}
+#page-overview #avatarStage.demo-is-active #avatar-3d {
+  right: calc(var(--feedback-width) + 16px); width: auto;
+  transform: none; transition: none;
+}
+#page-overview #avatarStage.demo-is-active .avatar-poster {
+  width: calc(100% - var(--feedback-width) - 16px);
+}
+#page-overview #deviceDemoLayer { bottom: var(--avatar-caption-space, 88px); }
+#deviceDemoLayer .demo-prop {
+  top: 50%; right: 8px; width: var(--feedback-width); box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 6px; padding: 12px 8px;
+  color: var(--feedback-text); background: var(--feedback-surface);
+  border: 1px solid var(--feedback-border); border-radius: 10px;
+  box-shadow: 0 4px 14px #153a5120;
+  transform: translateY(calc(-50% + 6px)); transition: transform .25s ease;
+}
+#deviceDemoLayer .demo-scene.is-visible .demo-prop { transform: translateY(-50%); }
+#deviceDemoLayer .demo-caption { color: var(--feedback-text); font-size: 12px; font-weight: 600; letter-spacing: 0; text-align: center; }
+#deviceDemoLayer .demo-control-button {
+  min-width: 0; padding: 0; gap: 5px; font-size: 11px; font-weight: 500;
+  color: var(--feedback-muted); background: none; border: 0; border-radius: 0;
+  box-shadow: none; transform: none;
+}
+#deviceDemoLayer .demo-control-button.is-on { color: var(--feedback-accent); }
+#deviceDemoLayer .demo-control-dot { width: 5px; height: 5px; border: 1px solid currentColor; background: none; box-shadow: none; }
+#deviceDemoLayer .demo-control-button.is-on .demo-control-dot { background: currentColor; box-shadow: none; }
+#deviceDemoLayer .device-line-visual { flex: 0 1 auto; width: min(76px, 100%); height: 76px; overflow: visible; color: var(--feedback-muted); transition: color .45s ease; }
+#deviceDemoLayer .device-line-visual.is-on { color: var(--feedback-accent); }
+#deviceDemoLayer .device-line-visual * { fill: none; }
+.device-door-leaf { transform-origin: 29px 52px; transition: transform .65s ease; }
+.is-on .device-door-leaf { transform: skewY(-12deg) scaleX(.42); }
+.device-window-sash { transition: transform .65s ease; }
+.is-on .device-window-sash { transform: translateX(28px); }
+.device-light-rays, .device-airflow, .device-screen-signal, .device-heat-flow { opacity: 0; transition: opacity .4s ease; }
+.is-on .device-light-rays, .is-on .device-airflow, .is-on .device-screen-signal, .is-on .device-heat-flow { opacity: 1; }
+.device-fan-rotor { transform-origin: 50px 39px; animation: device-line-spin 1.4s linear infinite paused; }
+.device-washer-rotor { transform-origin: 50px 57px; animation: device-line-spin 2.2s linear infinite paused; }
+.is-on .device-fan-rotor, .is-on .device-washer-rotor { animation-play-state: running; }
+.is-on .device-airflow { stroke-dasharray: 18 8; animation: device-air-motion 1.2s linear infinite; }
+.is-on .device-heat-flow { animation: device-heat-motion 1.6s ease-in-out infinite; }
+.device-no-transition, .device-no-transition * { transition: none !important; }
+@keyframes device-line-spin { to { transform: rotate(360deg); } }
+@keyframes device-air-motion { to { stroke-dashoffset: -26; } }
+@keyframes device-heat-motion { 50% { transform: translateY(-3px); opacity: .65; } }
+@media (max-height: 660px) {
+  #deviceDemoLayer .demo-prop { padding: 5px; gap: 3px; border-radius: 8px; }
+  #deviceDemoLayer .device-line-visual { width: 38px; height: 38px; }
+  #deviceDemoLayer .demo-caption { font-size: 11px; }
+  #deviceDemoLayer .demo-control-button { font-size: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #deviceDemoLayer *, #deviceDemoLayer *::after { animation: none !important; transition: none !important; }
+}

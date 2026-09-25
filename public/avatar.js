@@ -44,10 +44,11 @@ function resize() {
   const width = Math.max(1, host.clientWidth), height = Math.max(1, host.clientHeight);
   renderer.setSize(width, height, false);
   camera.aspect = width / height;
-  // Frame the face and upper body at every aspect ratio, above the caption.
-  const distance = Math.max(1.9, 1.10 / camera.aspect);
-  camera.position.set(0, 1.42, distance);
-  camera.lookAt(0, 1.34, 0);
+  // Fit the entire standing figure with space above the head and below the shoes.
+  const verticalHalfFov = THREE.MathUtils.degToRad(camera.fov / 2);
+  const distance = Math.max(1.90 / (2 * Math.tan(verticalHalfFov)), .82 / (2 * Math.tan(verticalHalfFov) * camera.aspect));
+  camera.position.set(0, .86, distance);
+  camera.lookAt(0, .86, 0);
   camera.updateProjectionMatrix();
 }
 
@@ -108,7 +109,7 @@ async function loadModel() {
   try {
     if (!renderer) createRenderer();
     const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-    const gltf = await loader.loadAsync('./assets/home-assistant.glb', event => {
+    const gltf = await loader.loadAsync('./assets/home-assistant.glb?v=fullbody-1', event => {
       if(event.total) status.textContent = '正在加载三维形象 ' + Math.round(event.loaded/event.total*100) + '%';
     });
     model = gltf.scene;
@@ -125,7 +126,7 @@ async function loadModel() {
         for(const material of materials) {
           material.envMapIntensity = .55;
           if(material.name.includes('body'))material.roughness = .72;
-          if(material.name.includes('casualsuit'))material.roughness = .9;
+          if(material.name.includes('Tailored'))material.roughness = .9;
         }
       }
       if(object.name==='Head') {head=object;headRest=object.quaternion.clone();}
@@ -192,10 +193,12 @@ window.HomeAvatar = {
   ready:false,
   reset:()=>{targetYaw=0;},
   diagnostics:()=>({ready:!!model,meshes:expressiveMeshes.length,frames,yaw,visible,webgl:!!renderer,reducedMotion:reducedMotion.matches,jaw:expressiveMeshes.find(m=>m.morphTargetDictionary.jawOpen!==undefined)?.morphTargetInfluences[expressiveMeshes.find(m=>m.morphTargetDictionary.jawOpen!==undefined).morphTargetDictionary.jawOpen] || 0}),
+  framing:()=>{if(!model)return null;const bounds=new THREE.Box3().setFromObject(model),points=[];for(const x of [bounds.min.x,bounds.max.x])for(const y of [bounds.min.y,bounds.max.y])for(const z of [bounds.min.z,bounds.max.z])points.push(new THREE.Vector3(x,y,z).project(camera));return {minX:Math.min(...points.map(p=>p.x)),maxX:Math.max(...points.map(p=>p.x)),minY:Math.min(...points.map(p=>p.y)),maxY:Math.max(...points.map(p=>p.y))};},
   capture:()=>{if(!renderer||!model)return null;renderer.render(scene,camera);return renderer.domElement.toDataURL('image/png');}
 };
 retry.addEventListener('click',()=>{if(model)location.reload();else loadModel();});
 new ResizeObserver(resize).observe(stage);
+new ResizeObserver(resize).observe(host);
 new ResizeObserver(resize).observe(caption);
 new MutationObserver(theme).observe(document.body,{attributes:true,attributeFilter:['class']});
 new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;}).observe(host);

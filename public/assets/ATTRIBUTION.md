@@ -8,8 +8,14 @@ The upstream README identifies this model as created with Blender / MPFB
 https://github.com/met4citizen/TalkingHead#avatars
 https://creativecommons.org/publicdomain/zero/1.0/
 
-Changes: remove the shirt graphic, recolor clothing, adjust the runtime arm pose,
-retain seven facial expression channels, remove unused data, resize
+Wardrobe: 'toigo_female_suit_2' and 'toigo_flats', by Margaret Toigo (MRT),
+released under CC0 in the official MakeHuman Community packs:
+https://static.makehumancommunity.org/assets/assetpacks/suits01.html
+https://static.makehumancommunity.org/assets/assetpacks/shoes01.html
+
+Changes: replace the casual outfit with a navy trouser suit and dark leather
+flats; fit the clothing to the body, transfer skeleton weights, adjust the arm
+pose, retain seven facial expression channels, remove unused data, resize
 textures to at most 1024 pixels, convert textures to WebP, and compress geometry
 with Meshoptimizer. The static fallback is rendered from this same model.
 No Youyan models, likenesses, images, or services are included.

@@ -709,6 +709,7 @@ function getDeviceDemoConfig(deviceKey) {
   if (deviceKey.startsWith('light_')) return { type: 'light', action: 'pull', label: labels[deviceKey] || '照明设备' };
   if (deviceKey.startsWith('window_')) return { type: 'window', action: 'push', label: labels[deviceKey] || '窗户' };
   if (deviceKey.startsWith('door_')) return { type: 'door', action: 'push', label: labels[deviceKey] || '门' };
+  if (deviceKey === 'water_heater') return { type: 'heater', action: 'remote', label: '热水器' };
   if (deviceKey === 'fan') return { type: 'fan', action: 'remote', label: '风扇' };
   if (deviceKey === 'ac') return { type: 'ac', action: 'remote', label: '空调' };
   if (deviceKey === 'kettle') return { type: 'kettle', action: 'remote', label: '煮水设备' };
@@ -718,107 +719,29 @@ function getDeviceDemoConfig(deviceKey) {
 }
 
 function getDeviceDemoBody(type) {
-  if (type === 'light') {
-    return `
-      <div class="demo-lamp" data-device-visual>
-        <div class="demo-lamp-cord"></div>
-        <div class="demo-bulb"></div>
-      </div>`;
-  }
-
-  if (type === 'window') {
-    return `
-      <div class="demo-window" data-device-visual>
-        <div class="demo-window-sash"></div>
-      </div>`;
-  }
-
-  if (type === 'fan') {
-    return `
-      <div class="demo-fan" data-device-visual>
-        <div class="demo-fan-cage">
-          <div class="demo-fan-blades">
-            <span></span><span></span><span></span><span></span>
-          </div>
-        </div>
-        <div class="demo-fan-stand"></div>
-      </div>`;
-  }
-
-  if (type === 'ac') {
-    return `
-      <div class="demo-ac" data-device-visual>
-        <div class="demo-ac-body">
-          <span class="demo-ac-display"></span>
-          <span class="demo-ac-vent"></span>
-        </div>
-      </div>`;
-  }
-
-  if (type === 'tv') {
-    return `
-      <div class="demo-tv" data-device-visual>
-        <div class="demo-tv-screen"></div>
-        <div class="demo-tv-stand"></div>
-      </div>`;
-  }
-
-  if (type === 'washer') {
-    return `
-      <div class="demo-washer" data-device-visual>
-        <span class="demo-washer-panel"></span>
-        <div class="demo-washer-door">
-          <div class="demo-washer-drum"></div>
-        </div>
-      </div>`;
-  }
-
-  if (type === 'kettle') {
-    return `
-      <div class="demo-kettle" data-device-visual>
-        <span class="demo-kettle-cord"></span>
-        <span class="demo-kettle-plug"></span>
-        <span class="demo-kettle-lid"></span>
-        <span class="demo-kettle-body"></span>
-        <span class="demo-kettle-handle"></span>
-        <span class="demo-kettle-base"></span>
-        <span class="demo-kettle-switch"><i></i></span>
-        <span class="demo-kettle-light"></span>
-        <span class="demo-kettle-coil"></span>
-        <span class="demo-kettle-steam steam-one"></span>
-        <span class="demo-kettle-steam steam-two"></span>
-        <span class="demo-kettle-steam steam-three"></span>
-      </div>`;
-  }
-
-  if (type === 'door') {
-    return `
-      <div class="demo-door" data-device-visual>
-        <div class="demo-door-frame"></div>
-        <div class="demo-door-panel"></div>
-      </div>`;
-  }
-
-  return `<div class="demo-generic" data-device-visual></div>`;
+  const drawings = {
+    door: '<path d="M24 86V14h52v72M20 86h60"/><g class="device-door-leaf"><path d="M29 20h41v65H29Z"/><path d="M60 52h3"/></g>',
+    window: '<rect x="14" y="19" width="72" height="62" rx="2"/><path d="M50 19v62"/><g class="device-window-sash"><rect x="19" y="24" width="27" height="52" rx="1"/><path d="M40 46v8"/></g><path d="M56 24h25v52H56M61 46v8"/>',
+    light: '<path d="M39 67c0-10-12-13-12-29a23 23 0 0 1 46 0c0 16-12 19-12 29ZM40 75h20M43 83h14M45 66V47l5 4 5-4v19"/><g class="device-light-rays"><path d="M50 3v5M16 15l5 5M4 38h7M16 63l6-5M84 15l-5 5M89 38h7M78 58l6 5"/></g>',
+    fan: '<circle cx="50" cy="39" r="29"/><circle cx="50" cy="39" r="3"/><g class="device-fan-rotor"><path d="M50 35c-14-19 5-23 8-14 2 6-1 10-5 15M54 40c24-3 18 17 9 15-6-1-8-5-10-12M48 42c-10 22-23 6-17 0 4-5 9-4 15-3"/></g><path d="M45 68v13h-15v6h40v-6H55V68"/>',
+    ac: '<rect x="10" y="22" width="80" height="40" rx="5"/><path d="M17 50h66M19 55h62M22 34h8M35 34h5"/><g class="device-airflow"><path d="M31 68v10q0 8-7 8M50 68v18M69 68v10q0 8 7 8"/></g>',
+    tv: '<rect x="10" y="18" width="80" height="53" rx="3"/><path d="M43 72v9M57 72v9M32 83h36"/><g class="device-screen-signal"><path d="M24 33h52M24 44h34M24 55h43"/></g>',
+    washer: '<rect x="21" y="10" width="58" height="80" rx="4"/><path d="M21 28h58M29 20h14"/><circle cx="67" cy="20" r="2"/><circle cx="50" cy="57" r="22"/><g class="device-washer-rotor"><path d="M36 51a15 15 0 0 1 23-6M64 61a15 15 0 0 1-24 7"/></g>',
+    kettle: '<path d="M32 31h32l7 43q1 7-8 7H33q-8 0-7-7l3-31-11-9h14M35 25h26M44 21h8M65 40h7q15 0 15 14T70 68M22 87h53"/><g class="device-heat-flow"><path d="M40 15q-5-5 0-10M52 15q-5-5 0-10M63 15q-5-5 0-10"/></g>',
+    heater: '<rect x="25" y="13" width="50" height="65" rx="8"/><circle cx="50" cy="35" r="9"/><path d="M50 35l4-4M39 78v10M61 78v10M34 88h10M56 88h10"/><g class="device-heat-flow"><path d="M40 65q-5-6 0-12M50 65q-5-6 0-12M60 65q-5-6 0-12"/></g>',
+    generic: '<path d="M50 17v29M33 26a30 30 0 1 0 34 0"/>'
+  };
+  return `<svg class="device-line-visual device-line-${type}" data-device-visual viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${drawings[type] || drawings.generic}</svg>`;
 }
 
 function setDeviceDemoVisual(scene, type, isOn, instant = false) {
   const visual = scene.querySelector('[data-device-visual]');
   if (!visual) return;
-
-  if (type === 'light') {
-    visual.querySelector('.demo-bulb')?.classList.toggle('is-on', isOn);
-  } else if (type === 'window' || type === 'ac' || type === 'tv' || type === 'washer' || type === 'kettle' || type === 'door') {
-    visual.classList.toggle('is-on', isOn);
-    visual.classList.toggle('is-open', isOn);
-  } else if (type === 'fan') {
-    const blades = visual.querySelector('.demo-fan-blades');
-    if (!blades) return;
-    blades.classList.remove('is-spinning', 'is-stopping');
-    if (isOn) blades.classList.add('is-spinning');
-    else if (!instant) blades.classList.add('is-stopping');
-  } else {
-    visual.classList.toggle('is-on', isOn);
+  visual.classList.toggle('is-on', isOn);
+  scene.dataset.state = isOn ? 'on' : 'off';
+  if (instant) {
+    visual.classList.add('device-no-transition');
+    requestAnimationFrame(() => requestAnimationFrame(() => visual.classList.remove('device-no-transition')));
   }
 }
 
@@ -828,7 +751,7 @@ function setDeviceDemoButton(scene, isOn) {
   if (!button) return;
   button.classList.toggle('is-on', isOn);
   button.classList.toggle('is-off', !isOn);
-  if (label) label.textContent = isOn ? '开启' : '关闭';
+  if (label) label.textContent = isOn ? '已开启' : '已关闭';
 }
 
 function queueDeviceDemo(deviceKey, nextState, previousState) {
@@ -858,11 +781,10 @@ function playDeviceDemo(event) {
       <div class="demo-caption">${config.label}</div>
       <div class="demo-control-button ${initialOn ? 'is-on' : 'is-off'}">
         <span class="demo-control-dot"></span>
-        <span class="demo-control-label">${initialOn ? '开启' : '关闭'}</span>
+        <span class="demo-control-label">${initialOn ? '已开启' : '已关闭'}</span>
       </div>
       ${getDeviceDemoBody(config.type)}
-    </div>
-    <div class="demo-timer"></div>`;
+    </div>`;
 
   deviceDemoActive = true;
   layer.replaceChildren(scene);
@@ -870,20 +792,11 @@ function playDeviceDemo(event) {
   stage.classList.add('demo-is-active', `demo-action-${config.action}`);
   requestAnimationFrame(() => scene.classList.add('is-visible'));
 
-  const controlButton = scene.querySelector('.demo-control-button');
-  const kettleSwitch = scene.querySelector('.demo-kettle-switch');
   deviceDemoTimers = [
     setTimeout(() => {
-      controlButton?.classList.add('is-pressed');
-      kettleSwitch?.classList.add('is-pressed');
-    }, 380),
-    setTimeout(() => {
-      controlButton?.classList.remove('is-pressed');
-      kettleSwitch?.classList.remove('is-pressed');
       setDeviceDemoVisual(scene, config.type, nextOn);
       setDeviceDemoButton(scene, nextOn);
-      scene.classList.toggle('is-pulling', config.type === 'light');
-    }, 760),
+    }, 420),
     setTimeout(() => closeDeviceDemo(scene, stage, layer, config.action), 3000)
   ];
 }
@@ -893,9 +806,8 @@ function closeDeviceDemo(scene, stage, layer, action) {
   deviceDemoTimers = [];
   scene.classList.remove('is-visible');
   scene.classList.add('is-leaving');
-  stage.classList.remove('demo-is-active', `demo-action-${action}`);
-
   setTimeout(() => {
+    stage.classList.remove('demo-is-active', `demo-action-${action}`);
     if (layer.firstChild === scene) layer.replaceChildren();
     deviceDemoActive = false;
     flushDeviceDemoQueue();
