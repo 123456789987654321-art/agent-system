@@ -15,9 +15,9 @@ const camera = new THREE.PerspectiveCamera(29, 1, .01, 30);
 const pivot = new THREE.Group();
 scene.add(pivot);
 const ambient = new THREE.HemisphereLight(0xe9f4ff, 0x65788a, 1.6);
-const key = new THREE.DirectionalLight(0xfff0de, 1.8);
+const key = new THREE.DirectionalLight(0xfff0de, 1.45);
 key.position.set(-2, 3, 4);
-const fill = new THREE.DirectionalLight(0xd0e6ff, .65);
+const fill = new THREE.DirectionalLight(0xe4edff, .48);
 fill.position.set(2, 1.5, 2);
 const rim = new THREE.DirectionalLight(0xc4e8ff, 2.4);
 rim.position.set(1, 2, -2);
@@ -31,10 +31,10 @@ const euler = new THREE.Euler();
 
 function theme() {
   const dark = document.body.classList.contains('dark-mode');
-  if (renderer) renderer.toneMappingExposure = dark ? .86 : .90;
-  ambient.intensity = dark ? .75 : .85;
-  rim.intensity = dark ? 3.2 : 2.1;
-  fill.color.set(dark ? 0xbcd9ff : 0xe0edff);
+  if (renderer) renderer.toneMappingExposure = dark ? .90 : .94;
+  ambient.intensity = dark ? .55 : .65;
+  rim.intensity = dark ? 1.15 : .80;
+  fill.color.set(dark ? 0xd2e1ff : 0xf1f3ff);
 }
 
 function resize() {
@@ -108,7 +108,7 @@ async function loadModel() {
   try {
     if (!renderer) createRenderer();
     const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-    const gltf = await loader.loadAsync('./assets/home-assistant.glb?v=fullbody-1', event => {
+    const gltf = await loader.loadAsync('./assets/home-assistant.glb?v=portrait-1', event => {
       if(event.total) status.textContent = '正在加载三维形象 ' + Math.round(event.loaded/event.total*100) + '%';
     });
     model = gltf.scene;
@@ -123,8 +123,8 @@ async function loadModel() {
         if(object.morphTargetDictionary)expressiveMeshes.push(object);
         const materials = Array.isArray(object.material)?object.material:[object.material];
         for(const material of materials) {
-          material.envMapIntensity = .55;
-          if(material.name.includes('body'))material.roughness = .72;
+          material.envMapIntensity = .40;
+          if(material.name.includes('body'))material.roughness = .67;
           if(material.name.includes('Tailored'))material.roughness = .9;
         }
       }
@@ -176,7 +176,7 @@ function frame(now) {
   morph('eyeBlinkLeft',blink); morph('eyeBlinkRight',blink);
   morph('jawOpen',speaking ? .12+.20*Math.pow(Math.sin(t*10),2) : 0);
   morph('mouthFunnel',speaking ? .09*Math.pow(Math.sin(t*7),2) : 0);
-  morph('mouthSmileLeft',.10); morph('mouthSmileRight',.10);
+  morph('mouthSmileLeft',.16); morph('mouthSmileRight',.16);
   morph('browInnerUp',listening ? .12 : .025);
   if(head) {
     euler.set(animate ? Math.sin(t*1.2)*.014+(listening?-.015:0) : 0, animate?Math.sin(t*.6)*.028:0, animate?Math.sin(t*.7)*.009:0);
