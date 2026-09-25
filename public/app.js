@@ -133,65 +133,30 @@ async function initLocationAndWeather() {
   if (locationInProgress) return;
   locationInProgress = true;
   lastLocationAttemptAt = Date.now();
-  const locDisplay = document.getElementById('location-display');
-  const meta = document.getElementById('location-meta');
-  const button = document.getElementById('location-button');
-  const coordinates = document.getElementById('location-coordinates');
-  if (locDisplay) locDisplay.innerText = '正在定位…';
-  if (coordinates) coordinates.innerText = '经纬度：正在获取…';
-  if (meta) meta.innerText = '正在获取浏览器位置';
-  if (button) { button.disabled = true; button.innerText = '刷新中…'; }
   let positionUpdated = false;
   try {
     let position;
     try {
       position = await getBrowserLocation();
     } catch (error) {
-      if (meta) meta.innerText = '浏览器定位不可用，正在通过 API 获取大致位置';
       position = await getApiLocation();
     }
     myLat = position.lat;
     myLon = position.lon;
     currentLocation = { ...position, updatedAt: Date.now() };
     positionUpdated = true;
-    if (coordinates) coordinates.innerText = '经度：' + myLon.toFixed(6) + ' · 纬度：' + myLat.toFixed(6);
     weatherLocationVersion += 1;
     weatherFetchPromise = null;
     todayWeatherSnapshot = null;
     resetWeatherDisplay('正在获取当前位置的天气…');
+    // 天气仅使用坐标，不再查询或展示地址信息。
     reportLocation();
     fetchHourlyWeather();
     fetchWeather();
-    const approximate = position.source === 'ip';
-    const source = approximate ? 'API 网络定位（大致位置）' : '浏览器定位';
-    const accuracy = !approximate && Number.isFinite(position.accuracy)
-      ? ' · 精度约 ' + Math.round(position.accuracy) + ' 米' : '';
-    if (meta) meta.innerText = source + accuracy + ' · 位置更新 ' + new Date(currentLocation.updatedAt).toLocaleTimeString('zh-CN', { hour12: false });
-    if (locDisplay) locDisplay.innerText = '定位成功，正在解析地址…';
-    let address = '';
-    try {
-      address = await reverseGeocode(myLat, myLon);
-    } catch (error) {
-      // 地址服务异常不等于坐标定位失败，也不影响已发出的天气请求。
-      if (approximate) {
-        try {
-          address = formatLocationAddress(position.address);
-        } catch (addressError) {
-          // 网络定位的地址字段也可能不完整；保留有效坐标。
-        }
-      }
-      if (!address && meta) {
-        meta.innerText += ' · 地址服务暂不可用，天气按已获取坐标查询';
-      }
-    }
-    if (locDisplay) locDisplay.innerText = address || '定位成功，地址解析暂不可用';
   } catch (error) {
     if (positionUpdated) {
-      if (locDisplay) locDisplay.innerText = '定位成功，数据更新暂不可用';
-      if (meta) meta.innerText += ' · 已获取坐标，请稍后重试更新';
+      resetWeatherDisplay('天气更新失败，请检查网络或刷新页面重试');
     } else {
-      if (locDisplay) locDisplay.innerText = '定位失败，请重新定位';
-      if (coordinates) coordinates.innerText = '经纬度：未获取';
       // 不把默认城市或上一次位置的天气冒充为当前位置天气。
       myLat = null;
       myLon = null;
@@ -199,12 +164,10 @@ async function initLocationAndWeather() {
       weatherLocationVersion += 1;
       weatherFetchPromise = null;
       todayWeatherSnapshot = null;
-      resetWeatherDisplay('无法确定当前位置，请重新定位后获取天气');
-      if (meta) meta.innerText = '浏览器与 API 均未获取到有效位置';
+      resetWeatherDisplay('无法确定当前位置，请检查定位权限或刷新页面重试');
     }
   } finally {
     locationInProgress = false;
-    if (button) { button.disabled = false; button.innerText = '定位刷新'; }
   }
 }
 
@@ -1572,7 +1535,7 @@ async function fetchWeather() {
     } catch (error) {
       if (locationVersion !== weatherLocationVersion) return null;
       todayWeatherSnapshot = null;
-      resetWeatherDisplay('获取天气失败，请检查网络或点击定位刷新重试');
+      resetWeatherDisplay('获取天气失败，请检查网络或刷新页面重试');
       return null;
     } finally {
       if (locationVersion === weatherLocationVersion) weatherFetchPromise = null;
