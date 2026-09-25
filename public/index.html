@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>居家管理辅助控制系统</title>
-  <link rel="stylesheet" href="style.css?v=20260925-county-boundary">
+  <link rel="stylesheet" href="style.css?v=20260925-city-location-refresh">
   <!-- 引入谷歌 3D 渲染引擎 -->
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
   <!-- 引入 Chart.js 用于绘制折线图 -->
@@ -298,7 +298,7 @@
                 <small id="location-coordinates">经纬度：正在获取…</small>
                 <small id="location-meta">浏览器定位优先，API 网络定位备用</small>
               </div>
-              <button id="location-button" class="location-button" type="button" onclick="initLocationAndWeather()">定位</button>
+              <button id="location-button" class="location-button" type="button" onclick="initLocationAndWeather()">定位刷新</button>
             </div>
           </div>
           <div id="weather-container" class="weather-grid">正在确定位置...</div>
@@ -421,6 +421,6 @@
       <div class="report-modal-body" id="reportModalBody"></div>
     </div>
   </div>
-  <script src="app.js?v=20260925-county-boundary"></script>
+  <script src="app.js?v=20260925-city-location-refresh"></script>
 </body>
 </html>

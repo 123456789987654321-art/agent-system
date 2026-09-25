@@ -99,29 +99,20 @@ async function getApiLocation() {
   };
 }
 
-function formatLocationAddress(ad, approximate = false) {
+function formatLocationAddress(ad) {
   if (!ad) throw new Error('地址缺失');
   const province = ad.state || ad.province;
   const municipality = /^(北京|天津|上海|重庆)市?$/.test(province || '') ? province : '';
   const city = ad.city || ad.municipality || ad.state_district || municipality;
-  const isDistinctArea = value => typeof value === 'string' && value.trim()
-    && value.trim() !== province && value.trim() !== city;
-  // OSM 的字段名称不直接对应中国行政级别，县级名称也可能出现在 town 等字段。
-  const explicitCounty = [ad.county, ad.city_district, ad.district, ad.borough].find(isDistinctArea);
-  const namedCounty = [ad.suburb, ad.town, ad.municipality, ad.village, ad.subdivision]
-    .find(value => isDistinctArea(value) && /(县|区|旗|市)$/.test(value.trim())
-      && !/(社区|小区|园区|开发区)$/.test(value.trim()));
-  const county = explicitCounty || namedCounty;
-  // IP 的城市中心坐标无法证明访问者所在的县/区。
   if (typeof ad.country !== 'string' || !ad.country.trim()) throw new Error('地址国家信息缺失');
-  const parts = [ad.country, province, city, approximate ? '未确定' : county];
+  const parts = [ad.country, province, city];
   return parts.map(part => typeof part === 'string' && part.trim() ? part.trim() : '未确定').join('-');
 }
 
-async function reverseGeocode(lat, lon, approximate = false) {
+async function reverseGeocode(lat, lon) {
   const url = '/api/location/address?lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lon);
   const data = await fetchJsonWithTimeout(url, 20000);
-  return formatLocationAddress(data.address, approximate);
+  return formatLocationAddress(data.address);
 }
 
 function resetWeatherDisplay(message) {
@@ -149,7 +140,7 @@ async function initLocationAndWeather() {
   if (locDisplay) locDisplay.innerText = '正在定位…';
   if (coordinates) coordinates.innerText = '经纬度：正在获取…';
   if (meta) meta.innerText = '正在获取浏览器位置';
-  if (button) { button.disabled = true; button.innerText = '定位中…'; }
+  if (button) { button.disabled = true; button.innerText = '刷新中…'; }
   let positionUpdated = false;
   try {
     let position;
@@ -172,19 +163,19 @@ async function initLocationAndWeather() {
     fetchHourlyWeather();
     fetchWeather();
     const approximate = position.source === 'ip';
-    const source = approximate ? 'API 网络定位（大致位置，县/区未确定）' : '浏览器定位';
+    const source = approximate ? 'API 网络定位（大致位置）' : '浏览器定位';
     const accuracy = !approximate && Number.isFinite(position.accuracy)
       ? ' · 精度约 ' + Math.round(position.accuracy) + ' 米' : '';
     if (meta) meta.innerText = source + accuracy + ' · 位置更新 ' + new Date(currentLocation.updatedAt).toLocaleTimeString('zh-CN', { hour12: false });
     if (locDisplay) locDisplay.innerText = '定位成功，正在解析地址…';
     let address = '';
     try {
-      address = await reverseGeocode(myLat, myLon, approximate);
+      address = await reverseGeocode(myLat, myLon);
     } catch (error) {
       // 地址服务异常不等于坐标定位失败，也不影响已发出的天气请求。
       if (approximate) {
         try {
-          address = formatLocationAddress(position.address, true);
+          address = formatLocationAddress(position.address);
         } catch (addressError) {
           // 网络定位的地址字段也可能不完整；保留有效坐标。
         }
@@ -213,7 +204,7 @@ async function initLocationAndWeather() {
     }
   } finally {
     locationInProgress = false;
-    if (button) { button.disabled = false; button.innerText = '定位'; }
+    if (button) { button.disabled = false; button.innerText = '定位刷新'; }
   }
 }
 
@@ -1581,7 +1572,7 @@ async function fetchWeather() {
     } catch (error) {
       if (locationVersion !== weatherLocationVersion) return null;
       todayWeatherSnapshot = null;
-      resetWeatherDisplay('获取天气失败，请检查网络或点击定位重试');
+      resetWeatherDisplay('获取天气失败，请检查网络或点击定位刷新重试');
       return null;
     } finally {
       if (locationVersion === weatherLocationVersion) weatherFetchPromise = null;
