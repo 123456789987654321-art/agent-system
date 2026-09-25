@@ -314,7 +314,26 @@ const dashboardTimerObserver = new ResizeObserver(() => {
 });
 dashboardTimerObserver.observe(dashboardTimerScreen);
 
-function toggleTheme() { document.body.classList.toggle('dark-mode'); }
+function toggleTheme() {
+  document.body.classList.toggle('dark-mode');
+  applyWeatherChartTheme();
+}
+
+function applyWeatherChartTheme() {
+  if (!weatherChart) return;
+  const dark = document.body.classList.contains('dark-mode');
+  const series = weatherChart.data.datasets[0];
+  series.borderColor = dark ? '#7bcaff' : '#007bff';
+  series.backgroundColor = dark ? 'rgba(91, 182, 244, 0.16)' : 'rgba(0, 123, 255, 0.1)';
+  series.pointBackgroundColor = dark ? '#19364e' : '#fff';
+  series.pointBorderColor = dark ? '#a4ddff' : '#007bff';
+  for (const axis of ['x', 'y']) {
+    weatherChart.options.scales[axis].ticks.color = dark ? '#c6d9eb' : '#666';
+    weatherChart.options.scales[axis].border = { color: dark ? '#6d8da9' : 'rgba(0,0,0,0.1)' };
+  }
+  weatherChart.options.scales.y.grid.color = dark ? 'rgba(166, 198, 226, 0.22)' : 'rgba(0,0,0,0.05)';
+  weatherChart.update('none');
+}
 
 function getWeatherInfo(code) {
   const value = Number(code);
@@ -1166,6 +1185,7 @@ async function fetchHourlyWeather() {
           }
         }
       });
+      applyWeatherChartTheme();
     }
   } catch (error) { 
     if (locationVersion !== weatherLocationVersion) return;
@@ -1358,7 +1378,7 @@ function renderUI(state) {
 
 function drawCanvas(percent, isAlert) {
   ctx.clearRect(0, 0, 200, 200);
-  ctx.beginPath(); ctx.arc(100, 100, 80, 0, 2 * Math.PI); ctx.strokeStyle = '#333'; ctx.lineWidth = 10; ctx.stroke();
+  ctx.beginPath(); ctx.arc(100, 100, 80, 0, 2 * Math.PI); ctx.strokeStyle = document.body.classList.contains('dark-mode') ? '#6683a5' : '#333'; ctx.lineWidth = 10; ctx.stroke();
   ctx.beginPath(); ctx.arc(100, 100, 80, -0.5 * Math.PI, (2 * Math.PI * percent) - 0.5 * Math.PI);
   ctx.strokeStyle = isAlert ? '#ff3333' : '#00ffff'; ctx.lineWidth = 10; ctx.stroke();
 }
