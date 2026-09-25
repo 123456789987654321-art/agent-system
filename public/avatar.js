@@ -44,11 +44,10 @@ function resize() {
   const width = Math.max(1, host.clientWidth), height = Math.max(1, host.clientHeight);
   renderer.setSize(width, height, false);
   camera.aspect = width / height;
-  // Fit the entire standing figure with space above the head and below the shoes.
-  const verticalHalfFov = THREE.MathUtils.degToRad(camera.fov / 2);
-  const distance = Math.max(1.90 / (2 * Math.tan(verticalHalfFov)), .82 / (2 * Math.tan(verticalHalfFov) * camera.aspect));
-  camera.position.set(0, .86, distance);
-  camera.lookAt(0, .86, 0);
+  // Restore the waist-up portrait while keeping the current tailored outfit.
+  const distance = Math.max(1.9, 1.10 / camera.aspect);
+  camera.position.set(0, 1.42, distance);
+  camera.lookAt(0, 1.34, 0);
   camera.updateProjectionMatrix();
 }
 
