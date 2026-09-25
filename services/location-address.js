@@ -1,7 +1,9 @@
 const axios = require('axios');
+const { createChinaCountyLookup } = require('./china-county');
 
 // Public Nominatim: identify the application, cache lookups and start at most one request/second.
-function createAddressLookup({ request = axios.get, now = Date.now } = {}) {
+function createAddressLookup({ request = axios.get, now = Date.now, countyLookup } = {}) {
+  const lookupCounty = countyLookup || createChinaCountyLookup({ request, now });
   const cache = new Map();
   const inFlight = new Map();
   let nextRequestAt = 0;
@@ -29,12 +31,31 @@ function createAddressLookup({ request = axios.get, now = Date.now } = {}) {
           timeout: 7000,
           maxRedirects: 0
         });
-        const address = response.data && response.data.address;
+        let address = response.data && response.data.address;
         if (!address || typeof address !== 'object' || !address.country) {
           throw new Error('地址数据缺失');
         }
+        const isChina = address.country_code === 'cn' || address.country === '中国';
+        const isDistinctArea = name => typeof name === 'string' && name.trim()
+          && name.trim() !== address.city && name.trim() !== address.state;
+        const hasCounty = [address.county, address.city_district, address.district, address.borough].some(isDistinctArea)
+          || [address.suburb, address.town, address.village, address.municipality, address.subdivision]
+            .some(name => isDistinctArea(name) && /(县|区|旗|市)$/.test(name.trim())
+              && !/(社区|小区|园区|开发区)$/.test(name.trim()));
+        let incompleteCounty = isChina && !hasCounty;
+        if (incompleteCounty) {
+          try {
+            const county = await lookupCounty(lat, lon);
+            if (county?.county) {
+              address = { ...address, ...county };
+              incompleteCounty = false;
+            }
+          } catch (error) {
+            // Keep known address parts if the supplemental boundary service is unavailable.
+          }
+        }
         if (cache.size >= 100) cache.delete(cache.keys().next().value);
-        cache.set(key, { address, expiresAt: now() + ttl });
+        cache.set(key, { address, expiresAt: now() + (incompleteCounty ? 60000 : ttl) });
         return address;
       } catch (error) {
         if (error.response?.status === 429) nextRequestAt = now() + 60000;

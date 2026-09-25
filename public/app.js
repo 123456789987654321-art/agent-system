@@ -53,9 +53,9 @@ function validCoordinates(lat, lon) {
     && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
 }
 
-async function fetchJsonWithTimeout(url) {
+async function fetchJsonWithTimeout(url, timeoutMs = 10000) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(url, { signal: controller.signal, cache: 'no-store' });
     if (!res.ok) throw new Error('位置或天气接口请求失败');
@@ -120,7 +120,7 @@ function formatLocationAddress(ad, approximate = false) {
 
 async function reverseGeocode(lat, lon, approximate = false) {
   const url = '/api/location/address?lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lon);
-  const data = await fetchJsonWithTimeout(url);
+  const data = await fetchJsonWithTimeout(url, 20000);
   return formatLocationAddress(data.address, approximate);
 }
 
