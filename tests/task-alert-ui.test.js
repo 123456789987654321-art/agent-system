@@ -101,20 +101,38 @@ test('blocked playback keeps the browser error and retries only on a real user c
   assert.equal(requests.length, 1);
 });
 
-test('a due alert waits for an existing reply and plays after it finishes', async () => {
+test('a due alert immediately replaces an ordinary reply without waiting for its end event', async () => {
   const { context, send, spoken, requests } = fixture();
-  const speak = context.window.HomeAvatar.speak;
   let finish;
-  context.window.HomeAvatar.speak = () => new Promise(resolve => { finish = resolve; });
+  context.window.HomeAvatar.speak = text => {
+    if (finish) finish(false);
+    spoken.push(text);
+    return new Promise(resolve => { finish = resolve; });
+  };
   const reply = context.agentSpeak('操作已完成');
+  context.deviceDemoActive = true;
   send('TASK_DONE', { id: 'waiting', name: '倒垃圾', text: '该倒垃圾了' });
+  assert.deepEqual(spoken, ['操作已完成', '该倒垃圾了']);
+  assert.equal(await reply, false);
+  assert.equal(context.deviceDemoActive, true, 'the reminder does not wait for the device animation');
+  assert.equal(context.speechInProgress, true, 'the cancelled reply cannot clear reminder playback state');
   assert.equal(requests.length, 0);
-  context.window.HomeAvatar.speak = speak;
   finish(true);
-  await reply;
   await flush();
-  assert.equal(spoken.length, 1);
+  assert.equal(spoken.length, 2);
   assert.equal(JSON.parse(requests[0].body).id, 'waiting');
+});
+
+test('a due reminder starts during a device animation even if the previous speech flag is stale', async () => {
+  const { context, send, spoken, requests } = fixture();
+  context.speechInProgress = true;
+  context.deviceDemoActive = true;
+  send('TASK_DONE', { id: 'trash', name: '倒垃圾', text: '该倒垃圾了' });
+  assert.equal(spoken.length, 1, 'expiry starts speech in the same event without a timer or animation callback');
+  await flush();
+  assert.equal(JSON.parse(requests[0].body).id, 'trash');
+  assert.equal(context.speechInProgress, false);
+  assert.equal(context.deviceDemoActive, true);
 });
 
 test('a late operation reply cannot interrupt the due reminder it just triggered', async () => {

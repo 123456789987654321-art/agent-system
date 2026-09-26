@@ -435,7 +435,8 @@ function parseRelativeDelay(text) {
 let pendingTaskAlerts = [];
 let selectedTaskAlertId = null;
 const taskAlerts = TaskAlerts.createController({
-  canSpeak: () => !isAgentOffline() && !!window.HomeAvatar?.canSpeak && !speechInProgress,
+  // Due reminders preempt ordinary replies; neither speech flags nor device animations delay them.
+  canSpeak: () => !isAgentOffline() && !!window.HomeAvatar?.canSpeak,
   speak: text => agentSpeak(text, { continueWhenHidden: true, throwOnError: true, taskAlert: true }),
   acknowledge: async id => {
     const controller = new AbortController();
@@ -482,8 +483,7 @@ function renderTaskAlert() {
   const label = alert.speaking ? '正在播报：' : alert.replayed ? '到期未处理：' : '到点提醒：';
   const status = alert.error || (!alert.replayed && !alert.speaking
     ? isAgentOffline() ? '请先在设置中保存 API Key'
-      : !window.HomeAvatar?.canSpeak ? '等待语音就绪，可点击播报重试'
-        : speechInProgress ? '等待当前语音结束后播报' : ''
+      : !window.HomeAvatar?.canSpeak ? '等待语音就绪，可点击播报重试' : ''
     : '');
   if (textEl) textEl.innerText = label + alert.name + extra + (status ? '（' + status + '）' : '');
   const speakButton = document.getElementById('taskAlertSpeak');
