@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="dark.css?v=20260926-depth">
   <link rel="stylesheet" href="avatar.css?v=avatar-clear-blink-20260927">
   <link rel="stylesheet" href="device-feedback.css?v=fullbody-1">
-  <script type="module" src="avatar-2d.js?v=avatar-tech-20260926-1"></script>
+  <script type="module" src="avatar-2d.js?v=reminder-playback-20260927-1"></script>
   <!-- 引入 Chart.js 用于绘制折线图 -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -106,8 +106,8 @@
             <div class="avatar-container">
               <div class="task-alert-bar" id="taskAlertBar" hidden>
                 <span class="task-alert-text" id="taskAlertText"></span>
-                <button type="button" class="task-alert-action" data-agent-required disabled onclick="speakPendingAlert()"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-volume"></use></svg> 播报</button>
-                <button type="button" class="task-alert-action" onclick="dismissPendingAlert()">忽略</button>
+                <button type="button" id="taskAlertSpeak" class="task-alert-action" data-agent-required disabled onclick="speakPendingAlert()"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-volume"></use></svg> 播报</button>
+                <button type="button" id="taskAlertDismiss" class="task-alert-action" onclick="dismissPendingAlert()">忽略</button>
               </div>
               <div class="avatar-3d-wrapper" id="avatarStage">
                 <div class="avatar-2d-viewport" id="avatar-2d">
@@ -510,7 +510,8 @@
   </div>
 
   <script src="task-parser.js?v=reminders-20260927-1"></script>
-  <script src="app.js?v=reminders-20260927-1"></script>
+  <script src="task-alerts.js?v=reminder-playback-20260927-1"></script>
+  <script src="app.js?v=reminder-playback-20260927-1"></script>
   <script src="report.js?v=avatar-tech-20260926-1"></script>
 </body>
 </html>

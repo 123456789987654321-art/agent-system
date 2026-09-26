@@ -47,8 +47,46 @@ async function fixture(t) {
   };
   const state = () => messages.filter(message => message.type === 'STATE_UPDATE').at(-1)?.data;
   await waitFor(() => Boolean(state()));
-  return { post, interact, report, messages, state, waitFor };
+  return { post, interact, report, messages, state, waitFor, socket, url };
 }
+
+async function reconnect(t, f) {
+  const messages = [];
+  const socket = new WebSocket(f.url.replace('http:', 'ws:'));
+  socket.on('message', data => messages.push(JSON.parse(String(data))));
+  t.after(() => socket.terminate());
+  await once(socket, 'open');
+  await f.waitFor(() => messages.some(message => message.type === 'TASK_ALERTS'));
+  return { socket, messages, backlog: messages.find(message => message.type === 'TASK_ALERTS').data };
+}
+
+test('expiry while the page is closed is restored as a silent backlog and can be acknowledged', { timeout: 20000 }, async t => {
+  const f = await fixture(t);
+  const closed = once(f.socket, 'close');
+  f.socket.close();
+  await closed;
+  const { task } = await f.post('/api/task', { name: '倒垃圾', seconds: 1, reminder: true });
+  const deadline = Date.now() + 5000;
+  while ((await f.report()).counts.remindersDue === 0 && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 50));
+  assert.equal((await f.report()).counts.remindersDue, 1);
+  const restored = await reconnect(t, f);
+  assert.equal(restored.backlog.length, 1);
+  assert.equal(restored.backlog[0].id, task.id);
+  assert.equal(restored.messages.some(message => message.type === 'TASK_DONE'), false);
+  await f.post('/api/task_alerts/ack', { id: task.id });
+  await f.waitFor(() => restored.messages.some(message => message.type === 'TASK_ALERT_ACK' && message.data.id === task.id));
+  assert.equal((await reconnect(t, f)).backlog.length, 0);
+});
+
+test('receiving a live alert does not discard it before playback acknowledgement', { timeout: 20000 }, async t => {
+  const f = await fixture(t);
+  await f.post('/api/task', { name: '倒垃圾', seconds: 1, reminder: true });
+  await f.waitFor(() => f.messages.some(message => message.type === 'TASK_DONE'));
+  const live = f.messages.find(message => message.type === 'TASK_DONE').data;
+  assert.equal((await reconnect(t, f)).backlog[0].id, live.id);
+  await f.post('/api/task_alerts/ack', { id: live.id });
+  assert.equal((await reconnect(t, f)).backlog.length, 0);
+});
 
 test('voice-style Chinese reminder is 300 seconds and emits reminder text at expiry', { timeout: 20000 }, async t => {
   const f = await fixture(t);

@@ -13,7 +13,10 @@ export class AvatarSpeech {
     this.onSpeech(false);
     try { this.synthesis?.cancel(); } catch {}
   }
-  speak(text) {
+  handleVisibilityChange(hidden) {
+    if (hidden && !this.pending?.continueWhenHidden) this.stop();
+  }
+  speak(text, { continueWhenHidden = false } = {}) {
     if (!this.isEnabled()) return Promise.reject(new Error('请先保存 API Key。'));
     if (!this.supported) return Promise.reject(new Error('当前浏览器不支持语音播报。'));
     const characters = Array.from(String(text).trim());
@@ -22,7 +25,7 @@ export class AvatarSpeech {
     const chunks = [];
     while (characters.length) chunks.push(characters.splice(0, 100).join(''));
     return new Promise((resolve, reject) => {
-      const pending = { resolve, reject, timer: null, utterance: null };
+      const pending = { resolve, reject, timer: null, utterance: null, continueWhenHidden };
       this.pending = pending;
       const finish = error => {
         if (this.pending !== pending) return;

@@ -38,6 +38,19 @@ test('replacement cancels prior speech and ignores late callbacks', async () => 
   assert.equal(f.states.at(-1), true);
   f.spoken[1].onend(); assert.equal(await next, true);
 });
+
+test('task reminders continue in a hidden tab while ordinary speech keeps its existing visibility behavior', async () => {
+  const f = await fixture();
+  const reminder = f.controller.speak('该倒垃圾了', { continueWhenHidden: true });
+  f.spoken[0].onstart();
+  f.controller.handleVisibilityChange(true);
+  assert.equal(f.states.at(-1), true);
+  f.spoken[0].onend();
+  assert.equal(await reminder, true);
+  const ordinary = f.controller.speak('普通回复');
+  f.controller.handleVisibilityChange(true);
+  assert.equal(await ordinary, false);
+});
 test('long text is preserved including Unicode and playback is sequential', async () => {
   const f = await fixture(); const text = '今天🙂'.repeat(90);
   const result = f.controller.speak(text);

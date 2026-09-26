@@ -11,6 +11,10 @@ const { createDailyReportStore } = require('./services/daily-report');
 const reportStore = createDailyReportStore({
   filePath: process.env.REPORT_DATA_FILE || path.join(__dirname, '.data', 'report-events.json')
 });
+const { createTaskAlertStore } = require('./services/task-alerts');
+const taskAlertStore = createTaskAlertStore({
+  filePath: process.env.TASK_ALERT_DATA_FILE || path.join(path.dirname(process.env.REPORT_DATA_FILE || path.join(__dirname, '.data', 'report-events.json')), 'task-alerts.json')
+});
 
 const app = express();
 app.use(express.static(path.join(__dirname, 'public'), {
@@ -81,6 +85,8 @@ setInterval(() => {
 // 任务在服务端持续计时，页面登录与否都不影响；新页面连上先同步一次完整状态
 wss.on('connection', (socket) => {
   socket.send(JSON.stringify({ type: 'STATE_UPDATE', data: homeState }));
+  // This backlog is distinct from live expiry events and must never auto-play.
+  socket.send(JSON.stringify({ type: 'TASK_ALERTS', data: taskAlertStore.list() }));
 });
 
 function broadcastState() {
@@ -90,7 +96,8 @@ function broadcastLog(logText) {
   wss.clients.forEach(c => c.readyState === WebSocket.OPEN && c.send(JSON.stringify({ type: 'AGENT_LOG', log: logText })));
 }
 function broadcastTaskDone(task, text) {
-  const payload = JSON.stringify({ type: 'TASK_DONE', data: { id: task.id, name: task.name, reminder: task.reminder === true, text: text } });
+  const alert = taskAlertStore.add(task, text);
+  const payload = JSON.stringify({ type: 'TASK_DONE', data: alert });
   let sent = 0;
   wss.clients.forEach(c => { if (c.readyState === WebSocket.OPEN) { c.send(payload); sent++; } });
   return sent;
@@ -521,6 +528,19 @@ app.post('/api/interact', async (req, res) => {
   if (typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: '指令不能为空' });
   const reply = await processAgentThought(text, llmConfig);
   res.json({ reply });
+});
+
+app.post('/api/task_alerts/ack', (req, res) => {
+  const id = req.body?.id;
+  if (typeof id !== 'string' || !id) return res.status(400).json({ error: '无效的提醒编号' });
+  try {
+    taskAlertStore.acknowledge(id);
+    const payload = JSON.stringify({ type: 'TASK_ALERT_ACK', data: { id } });
+    wss.clients.forEach(client => { if (client.readyState === WebSocket.OPEN) client.send(payload); });
+    res.json({ success: true });
+  } catch {
+    res.status(503).json({ error: '提醒处理状态暂未保存，请重试' });
+  }
 });
 
 app.post('/api/task', (req, res) => {

@@ -1,4 +1,4 @@
-import { AvatarSpeech } from './avatar-speech.mjs?v=avatar-tech-20260926-1';
+import { AvatarSpeech } from './avatar-speech.mjs?v=reminder-playback-20260927-1';
 
 const stage = document.getElementById('avatarStage');
 const host = document.getElementById('avatar-2d');
@@ -45,7 +45,7 @@ stage.addEventListener('pointerleave', resetDepth);
 window.HomeAvatar = {
   get ready() { return !!host.querySelector('svg'); },
   get canSpeak() { return speech.canSpeak; },
-  speak: text => speech.speak(text),
+  speak: (text, options) => speech.speak(text, options),
   stopSpeech: () => speech.stop(),
   syncAccess,
 };
@@ -57,7 +57,7 @@ const observer = new ResizeObserver(() => {
 observer.observe(host);
 observer.observe(caption);
 window.addEventListener('pagehide', () => speech.stop());
-document.addEventListener('visibilitychange', () => { if (document.hidden) speech.stop(); });
+document.addEventListener('visibilitychange', () => speech.handleVisibilityChange(document.hidden));
 resize();
 syncAccess();
 window.updateAgentConnectionState?.();

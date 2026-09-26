@@ -1,5 +1,6 @@
 const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-const ws = new WebSocket(`${wsProtocol}//${location.host}`);
+let ws = null;
+let wsReconnectTimer = null;
 const canvas = document.getElementById('timerCanvas');
 const ctx = canvas.getContext('2d');
 
@@ -428,14 +429,25 @@ function parseRelativeDelay(text) {
   return TaskParser.parseRelativeDelay(text);
 }
 
-// 任务到点时由服务端推送，这里负责播报
+// 实时到点自动播报；重新进入页面时恢复的未读提醒只等待用户选择。
 let pendingTaskAlerts = [];
+const taskAlerts = TaskAlerts.createController({
+  speak: text => agentSpeak(text, { continueWhenHidden: true }),
+  acknowledge: async id => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    try {
+      const response = await fetch('/api/task_alerts/ack', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }), signal: controller.signal
+      });
+      if (!response.ok || !(await response.json()).success) throw new Error('提醒处理状态未同步');
+    } finally { clearTimeout(timeout); }
+  },
+  onChange: alerts => { pendingTaskAlerts = alerts; renderTaskAlert(); }
+});
 
-// 到点不自动播报，先在数字人上方弹一条提醒，等用户点播报或说播报提醒
 function handleTaskDone(task) {
-  if (!task) return;
-  pendingTaskAlerts.push(task);
-  renderTaskAlert();
+  taskAlerts.receive(task);
 }
 
 function renderTaskAlert() {
@@ -449,20 +461,21 @@ function renderTaskAlert() {
   }
   bar.hidden = false;
   const extra = pendingTaskAlerts.length > 1 ? '（还有 ' + (pendingTaskAlerts.length - 1) + ' 条）' : '';
-  if (textEl) textEl.innerText = '到点提醒：' + alert.name + extra;
+  const label = alert.speaking ? '正在播报：' : alert.replayed ? '到期未处理：' : '到点提醒：';
+  if (textEl) textEl.innerText = label + alert.name + extra + (alert.error ? '（' + alert.error + '）' : '');
+  const speakButton = document.getElementById('taskAlertSpeak');
+  const dismissButton = document.getElementById('taskAlertDismiss');
+  if (speakButton) speakButton.disabled = alert.speaking || isAgentOffline();
+  if (dismissButton) dismissButton.disabled = alert.speaking;
 }
 
 function speakPendingAlert() {
   if (!requireAgentConfiguration()) return;
-  const alert = pendingTaskAlerts.shift();
-  if (!alert) return;
-  agentSpeak(alert.text || ('现在要去' + alert.name + '了'));
-  renderTaskAlert();
+  return taskAlerts.speakNext();
 }
 
 function dismissPendingAlert() {
-  pendingTaskAlerts.shift();
-  renderTaskAlert();
+  return taskAlerts.dismissNext();
 }
 
 // ==== 倒计时框控制：暂停 / 继续 / 清除 / 延长 / 提前 ====
@@ -860,8 +873,8 @@ async function triggerFaceDetect() {
 }
 
 // The local portrait follows actual browser speech playback events.
-async function agentSpeak(text) {
-  if (isAgentOffline()) return;
+async function agentSpeak(text, options = {}) {
+  if (isAgentOffline()) return false;
   window.DailyReport?.stopSpeech();
   window.speechSynthesis?.cancel();
   const statusEl = document.querySelector('.avatar-status');
@@ -869,17 +882,21 @@ async function agentSpeak(text) {
   if (statusEl) statusEl.innerText = text;
   if (!window.HomeAvatar?.canSpeak) {
     if (titleEl) titleEl.innerText = '文字回复 · 语音不可用';
-    return;
+    return false;
   }
   const version = ++agentSpeechVersion;
   speechInProgress = true;
   if (titleEl) titleEl.innerText = '管家回应中';
   showGlobalVoiceStatus('管家回应中', text, 'speaking');
   try {
-    const completed = await window.HomeAvatar.speak(text);
+    const completed = await window.HomeAvatar.speak(text, options);
     if (version === agentSpeechVersion && titleEl) titleEl.innerText = completed ? getAgentIdleTitle() : '播报已停止';
+    return completed === true;
   }
-  catch (error) { if (version === agentSpeechVersion && titleEl) titleEl.innerText = '播报未完成 · 文字回复已保留'; }
+  catch (error) {
+    if (version === agentSpeechVersion && titleEl) titleEl.innerText = '播报未完成 · 文字回复已保留';
+    return false;
+  }
   finally {
     if (version === agentSpeechVersion) {
       speechInProgress = false;
@@ -1052,13 +1069,23 @@ async function fetchWeather() {
   return weatherFetchPromise;
 }
 
-ws.onmessage = (event) => {
+function handleSocketMessage(event) {
   const msg = JSON.parse(event.data);
   if (msg.type === 'AGENT_LOG') console.log("AI状态更新: ", msg.log); 
   else if (msg.type === 'STATE_UPDATE') renderUI(msg.data);
   else if (msg.type === 'TASK_DONE') handleTaskDone(msg.data);
+  else if (msg.type === 'TASK_ALERTS') taskAlerts.restore(msg.data);
+  else if (msg.type === 'TASK_ALERT_ACK') taskAlerts.remove(msg.data.id);
   else if (msg.type === 'REPORT_UPDATE') window.DailyReport?.invalidate();
-};
+}
+
+function connectSocket() {
+  clearTimeout(wsReconnectTimer);
+  ws = new WebSocket(`${wsProtocol}//${location.host}`);
+  ws.onmessage = handleSocketMessage;
+  ws.onclose = () => { wsReconnectTimer = setTimeout(connectSocket, 2000); };
+}
+connectSocket();
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (char) => ({

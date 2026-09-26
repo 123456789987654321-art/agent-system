@@ -10,7 +10,7 @@ test('browser and server share Chinese duration parsing', () => {
   const context = vm.createContext({});
   vm.runInContext(parserSource, context);
   const start = appSource.indexOf('function parseRelativeDelay(');
-  const end = appSource.indexOf('// 任务到点时由服务端推送', start);
+  const end = appSource.indexOf('// 实时到点自动播报', start);
   vm.runInContext(appSource.slice(start, end), context);
   assert.equal(context.parseRelativeDelay('五分钟后').seconds, 300);
 });
