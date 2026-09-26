@@ -1,38 +1,28 @@
-/* Neutral studio framing keeps the actual 3D model legible in both themes. */
-#page-overview .digital-human-card #avatarStage {
-  isolation: isolate;
-  background: radial-gradient(ellipse at 45% 30%, #e4edf3 0%, #bdd0df 65%, #9cb5cb 100%);
-  border: 1px solid #8faac2;
-  box-shadow: inset 0 1px 0 #ffffff80;
-}
-#page-overview .digital-human-card #avatarStage::after { display: none; }
-#page-overview .digital-human-card #avatar-3d {
-  inset: 0 0 var(--avatar-caption-space, 88px);
-  width: 100%; height: auto; min-height: 0;
-  opacity: 1; pointer-events: auto; z-index: 2;
-}
-#avatar-3d canvas { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
-#avatar-3d canvas:active { cursor: grabbing; }
-#avatar-3d canvas:focus-visible { outline: 2px solid #31769e; outline-offset: -4px; border-radius: 10px; }
-.avatar-poster { position: absolute; inset: 0 0 var(--avatar-caption-space, 88px); width: 100%; height: calc(100% - var(--avatar-caption-space, 88px)); object-fit: contain; object-position: center; z-index: 1; }
-.avatar-model-ready .avatar-poster, .avatar-model-ready .avatar-loading { display: none; }
-/* A failed WebGL canvas must not overlap the static fallback. */
-.avatar-model-failed #avatar-3d { visibility: hidden; }
-.avatar-loading { position: absolute; left: 8px; right: 8px; bottom: calc(var(--avatar-caption-space, 88px) + 8px); z-index: 4; display: flex; align-items: center; justify-content: center; gap: 8px; color: #294962; font-size: 11px; }
-.avatar-loading span { padding: 4px 8px; border-radius: 6px; background: #e2ecf4ed; }
-#avatarRetry { border: 1px solid #507896; border-radius: 6px; color: #244964; background: #e3eef6; padding: 4px 8px; cursor: pointer; }
-#avatarRetry[hidden] { display: none; }
-#page-overview .digital-human-card .avatar-caption { background: #e0eaf3f5; border-color: #91abc1; box-shadow: 0 3px 12px #47638120; z-index: 5; }
-#page-overview .digital-human-card .sound-wave { bottom: var(--avatar-caption-space, 88px); z-index: 3; height: 18px; }
-body.dark-mode #page-overview .digital-human-card #avatarStage {
-  background: radial-gradient(ellipse at 45% 30%, #41627b 0%, #203b52 58%, #14273c 100%);
-  border-color: #7294af; box-shadow: inset 0 1px 0 #b5d8ef22;
-}
-body.dark-mode #page-overview .digital-human-card .avatar-caption { background: #162d42f5; border-color: #779bb5; box-shadow: 0 3px 12px #07142655; }
-body.dark-mode .avatar-loading { color: #deedf8; }
-body.dark-mode .avatar-loading span { background: #19354bea; }
-body.dark-mode #avatarRetry { background: #254960; color: #e7f4ff; border-color: #8eabc1; }
-body.dark-mode #avatar-3d canvas:focus-visible { outline-color: #97d5ef; }
+/* Official avatar viewport and honest unconfigured state; no model substitute. */
+#page-overview .digital-human-card #avatarStage { isolation:isolate; background:radial-gradient(ellipse at 45% 30%,#e4edf3,#bdd0df 65%,#9cb5cb); border:1px solid #8faac2; box-shadow:inset 0 1px 0 #ffffff80; }
+#page-overview .digital-human-card #avatarStage::after { display:none; }
+.official-avatar-viewport { position:absolute; inset:0 0 var(--avatar-caption-space,88px); overflow:hidden; }
+#page-overview .digital-human-card #avatar-3d { position:relative!important; inset:auto; width:100%; height:100%; min-height:0; opacity:1; pointer-events:auto; z-index:2; }
+#avatar-3d canvas { display:block; max-width:100%; }
+.avatar-empty { position:absolute; inset:0 0 var(--avatar-caption-space,88px); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:24px; text-align:center; color:#294962; background:#dce8f2; z-index:3; }
+.avatar-empty[hidden] { display:none; }
+.avatar-empty-icon { width:46px; height:46px; color:#507b9a; }
+.avatar-empty strong { font-size:19px; }
+.avatar-empty p { max-width:340px; margin:0; line-height:1.7; font-size:13px; }
+#page-overview .digital-human-card .avatar-caption { background:#e0eaf3f5; border-color:#91abc1; box-shadow:0 3px 12px #47638120; z-index:5; }
+#page-overview .digital-human-card .sound-wave { bottom:var(--avatar-caption-space,88px); z-index:3; height:18px; }
+.avatar-config-help { font-size:13px; line-height:1.7; color:var(--text-secondary,#65778b); }
+.avatar-config-status { min-height:24px; font-size:13px; line-height:1.65; overflow-wrap:anywhere; color:var(--text-color,#294962); }
+.avatar-config-status[data-state="error"] { color:#b24734; }
+.official-avatar-settings .settings-actions { flex-wrap:wrap; }
+.official-avatar-settings .toggle-btn:disabled { opacity:.55; cursor:not-allowed; }
+body.dark-mode #page-overview .digital-human-card #avatarStage { background:#172e42; border-color:#7294af; }
+body.dark-mode .avatar-empty { color:#deedf8; background:#203b52; }
+body.dark-mode .avatar-empty-icon { color:#a5cde6; }
+body.dark-mode #page-overview .digital-human-card .avatar-caption { background:#162d42f5; border-color:#779bb5; }
+body.dark-mode .avatar-config-help, body.dark-mode .avatar-config-status { color:#c0d3e3; }
+body.dark-mode .avatar-config-status[data-state="error"] { color:#ffb49e; }
+@media (max-width:480px) { .avatar-empty { padding:16px; gap:10px; } .avatar-empty strong { font-size:17px; } .official-avatar-settings .settings-actions { gap:8px; } }
 
 /* Timer has its own theme tokens, including idle, paused and near-completion states. */
 #page-overview .projection-screen {
@@ -63,3 +53,11 @@ body.dark-mode #page-overview .projection-screen {
 
 /* Manual controls stay available; only agent actions require a saved API key. */
 [data-agent-required]:disabled, #userInput:disabled { opacity: .6; cursor: not-allowed; }
+
+.official-avatar-settings a, .official-avatar-settings a:visited { color:#1d6395; }
+body.dark-mode .official-avatar-settings a, body.dark-mode .official-avatar-settings a:visited { color:#9ed5f4; }
+.avatar-compact .avatar-empty { gap:5px; padding:8px 12px; }
+.avatar-compact .avatar-empty-icon { display:none; }
+.avatar-compact .avatar-empty strong { font-size:13px; }
+.avatar-compact .avatar-empty p { font-size:11px; line-height:1.3; }
+.avatar-compact .avatar-empty button { padding:5px 10px; font-size:12px; }

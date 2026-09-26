@@ -1,3 +1,5 @@
+> Legacy asset build: the active page now uses the official SDK. See `docs/official-avatar.md`; these local assets are no longer loaded by the application.
+
 # Rebuilding the digital human
 
 The runtime uses `home-assistant.glb`, `home-assistant.webp`, and

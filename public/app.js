@@ -25,6 +25,7 @@ let agentRequestController = null;
 let avatarSilenceTimer = null;
 let timerDisplayState = { percent: 0, isAlert: false, state: "idle" };
 let speechInProgress = false;
+let agentSpeechVersion = 0;
 let globalVoiceHideTimer = null;
 const AVATAR_INITIAL_TIMEOUT_MS = 6000;
 const AVATAR_SILENCE_TIMEOUT_MS = 1200;
@@ -185,7 +186,7 @@ function startWeatherAutoRefresh() {
 
 // ==== AI 管家在线 / 离线状态（是否已配置可用 API Key）====
 const AGENT_ONLINE_CAPTION = { title: '管家已启用', text: '先生，随时听候您的差遣。' };
-const AGENT_OFFLINE_CAPTION = { title: '管家未启用', text: '请在「设置」中填入 API Key 并保存以启用数字人；未配置时可使用页面按钮手动控制。' };
+const AGENT_OFFLINE_CAPTION = { title: '管家未启用', text: '请先在「设置」保存大模型 API Key，再连接官方数字人；未配置时可使用按钮手动控制。' };
 let agentOfflineState = null;
 
 // Only a saved key enables the agent; typing an unsaved draft does not.
@@ -203,6 +204,8 @@ function requireAgentConfiguration() {
 }
 
 function stopAgentActivity() {
+  agentSpeechVersion++;
+  window.HomeAvatar?.stopSpeech();
   agentRequestController?.abort();
   agentRequestController = null;
   if (avatarRecognition) {
@@ -231,7 +234,7 @@ function isAgentOffline() { return !getEffectiveApiKey(); }
 function getAgentIdleTitle() { return isAgentOffline() ? AGENT_OFFLINE_CAPTION.title : AGENT_ONLINE_CAPTION.title; }
 function getAgentIdleText() { return isAgentOffline() ? AGENT_OFFLINE_CAPTION.text : AGENT_ONLINE_CAPTION.text; }
 
-// 没有密钥：状态牌红框灰字显示离线，数字人闭眼、双手垂放腿侧，像未开机一样
+// 未保存大模型密钥时，禁止智能体活动并释放官方数字人会话。
 function updateAgentConnectionState() {
   const offline = isAgentOffline();
   const card = document.getElementById('digitalHumanCard');
@@ -239,8 +242,8 @@ function updateAgentConnectionState() {
   const badgeText = badge ? badge.querySelector('.avatar-online-text') : null;
 
   if (card) card.classList.toggle('agent-offline', offline);
-  if (badge) badge.setAttribute('aria-label', offline ? '未启用：未配置 API Key' : '已启用：已保存 API Key，尚不代表调用验证成功');
-  if (badgeText) badgeText.innerText = offline ? '未启用' : '已启用';
+  if (badge) badge.setAttribute('aria-label', offline ? '未启用：未配置 API Key' : window.HomeAvatar?.ready ? '官方数字人已加载；大模型调用仍需实际验证' : '大模型配置已保存，官方形象待连接');
+  if (badgeText) badgeText.innerText = offline ? '未启用' : window.HomeAvatar?.ready ? '形象已连接' : '待连接形象';
 
   document.querySelectorAll('[data-agent-required]').forEach(button => {
     button.disabled = offline;
@@ -253,6 +256,7 @@ function updateAgentConnectionState() {
   }
   window.DailyReport?.updateSpeechButtons();
   if (offline) stopAgentActivity();
+  window.HomeAvatar?.syncAccess();
   if (agentOfflineState === offline) return;
   agentOfflineState = offline;
 
@@ -966,49 +970,34 @@ async function triggerFaceDetect() {
   summonButler();
 }
 
-// 3D 动作与语音同步联动
-function agentSpeak(text) {
+// Official SDK owns audio, lip sync and body animation. No browser TTS substitute.
+async function agentSpeak(text) {
   if (isAgentOffline()) return;
-  if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) return;
   window.DailyReport?.stopSpeech();
+  window.speechSynthesis?.cancel();
   const statusEl = document.querySelector('.avatar-status');
-  const stage = document.getElementById('avatarStage');
   const titleEl = document.getElementById('avatarCaptionTitle');
-  
-  window.speechSynthesis.cancel();
-  speechInProgress = true;
-  showGlobalVoiceStatus('管家回应中', text, 'speaking');
   if (statusEl) statusEl.innerText = text;
+  if (!window.HomeAvatar?.ready) {
+    if (titleEl) titleEl.innerText = '文字回复 · 官方形象待连接';
+    return;
+  }
+  const version = ++agentSpeechVersion;
+  speechInProgress = true;
   if (titleEl) titleEl.innerText = '管家回应中';
-  if (stage) stage.classList.add('speaking');
-
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'zh-CN'; 
-  utterance.rate = 1.0;     
-  utterance.pitch = 1.0;    
-  
-  utterance.onend = () => {
-    speechInProgress = false;
-    if (stage) stage.classList.remove('speaking');
-    if (titleEl) titleEl.innerText = getAgentIdleTitle();
-    setTimeout(flushDeviceDemoQueue, 240);
-    hideGlobalVoiceStatus();
-    setTimeout(() => {
-      if (!window.speechSynthesis.speaking && statusEl) {
-        statusEl.innerText = getAgentIdleText();
-      }
-    }, 3000);
-  };
-  
-  utterance.onerror = () => {
-    speechInProgress = false;
-    if (stage) stage.classList.remove('speaking');
-    if (titleEl) titleEl.innerText = getAgentIdleTitle();
-    setTimeout(flushDeviceDemoQueue, 240);
-    hideGlobalVoiceStatus();
-  };
-  
-  window.speechSynthesis.speak(utterance);
+  showGlobalVoiceStatus('管家回应中', text, 'speaking');
+  try {
+    const completed = await window.HomeAvatar.speak(text);
+    if (version === agentSpeechVersion && titleEl) titleEl.innerText = completed ? getAgentIdleTitle() : '播报已停止';
+  }
+  catch (error) { if (version === agentSpeechVersion && titleEl) titleEl.innerText = '播报未完成 · 文字回复已保留'; }
+  finally {
+    if (version === agentSpeechVersion) {
+      speechInProgress = false;
+      setTimeout(flushDeviceDemoQueue, 240);
+      hideGlobalVoiceStatus();
+    }
+  }
 }
 
 initApiKeyWatcher();

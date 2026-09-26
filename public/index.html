@@ -9,10 +9,9 @@
   <link rel="stylesheet" href="layout.css?v=20260925-layout">
   <link rel="stylesheet" href="dashboard.css?v=20260926-weather-fit-2">
   <link rel="stylesheet" href="dark.css?v=20260926-depth">
-  <link rel="stylesheet" href="avatar.css?v=20260926-agent-gate-1">
+  <link rel="stylesheet" href="avatar.css?v=xmov-20260926-1">
   <link rel="stylesheet" href="device-feedback.css?v=fullbody-1">
-  <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js"}}</script>
-  <script type="module" src="avatar.js?v=slender-20260926-1"></script>
+  <script type="module" src="official-avatar.js?v=xmov-20260926-1"></script>
   <!-- 引入 Chart.js 用于绘制折线图 -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -111,9 +110,13 @@
                 <button type="button" class="task-alert-action" onclick="dismissPendingAlert()">忽略</button>
               </div>
               <div class="avatar-3d-wrapper" id="avatarStage">
-                <img class="avatar-poster" src="assets/home-assistant.webp?v=slender-20260926-1" alt="数字管家静态形象">
-                <div id="avatar-3d"></div>
-                <div class="avatar-loading" role="status"><span id="avatarLoadStatus">正在加载三维形象</span><button id="avatarRetry" type="button" hidden>重新加载</button></div>
+                <div class="official-avatar-viewport"><div id="avatar-3d" aria-label="官方数字人画面"></div></div>
+                <div class="avatar-empty" id="avatarEmpty">
+                  <svg class="ui-icon avatar-empty-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-settings"></use></svg>
+                  <strong id="avatarEmptyTitle">官方数字人待配置</strong>
+                  <p id="avatarLoadStatus">在设置中连接官方应用，加载你选择的数字人形象。</p>
+                  <button id="avatarSetup" type="button" class="toggle-btn">前往设置</button>
+                </div>
 
                 <div class="device-demo-layer" id="deviceDemoLayer" aria-live="polite"></div>
 
@@ -328,6 +331,20 @@
             <span id="saveStatus" style="color: #48bb78; font-weight: bold; display: none;"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-check"></use></svg> <span id="saveStatusText">已生效</span></span>
           </div>
         </div>
+        <div class="card official-avatar-settings">
+          <h3>官方数字人 · 魔珐星云</h3>
+          <p class="avatar-config-help">在官方平台创建「驱动应用」，选择角色、音色和表演风格，再填写下方凭据。大模型 API Key 用于思考与控制，这组凭据用于形象和声音。</p>
+          <p><a href="https://www.xingyun3d.com/" target="_blank" rel="noopener noreferrer">打开官方平台</a> · <a href="https://www.xingyun3d.com/developers/59-502" target="_blank" rel="noopener noreferrer">查看接入说明</a></p>
+          <div class="setting-box"><label for="avatarAppId">App ID</label><input id="avatarAppId" class="api-input" type="text" autocomplete="off" spellcheck="false" placeholder="官方驱动应用的 App ID"></div>
+          <div class="setting-box"><label for="avatarAppSecret">App Secret</label><input id="avatarAppSecret" class="api-input" type="password" autocomplete="off" placeholder="仅用于本次连接，不保存到浏览器"></div>
+          <p class="avatar-config-help">凭据仅临时保存在服务端内存，断开后清除。连接使用官方账户额度；请通过 HTTPS 或 localhost 打开本系统。</p>
+          <div class="settings-actions">
+            <button id="avatarConnect" class="toggle-btn" data-agent-required disabled type="button">连接官方数字人</button>
+            <button id="avatarDisconnect" class="toggle-btn" type="button" disabled>断开</button>
+            <button id="avatarTest" class="toggle-btn" type="button" disabled>测试形象播报</button>
+          </div>
+          <p id="avatarConnectionStatus" class="avatar-config-status" role="status" aria-live="polite">尚未连接官方数字人</p>
+        </div>
         </div>
       </div>
 
@@ -354,7 +371,7 @@
     <button type="button" class="global-voice-close" onclick="hideGlobalVoiceStatus(true)" aria-label="关闭语音状态"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-close"></use></svg></button>
   </div>
 
-  <script src="app.js?v=20260926-remove-network-1"></script>
-  <script src="report.js?v=20260926-agent-gate-1"></script>
+  <script src="app.js?v=xmov-20260926-1"></script>
+  <script src="report.js?v=xmov-20260926-1"></script>
 </body>
 </html>

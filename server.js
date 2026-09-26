@@ -19,6 +19,15 @@ app.use(express.static(path.join(__dirname, 'public'), {
 }));
 app.use(express.json());
 
+// Exact, self-hosted official SDK version. No credentials are bundled here.
+const { createAvatarGateway } = require('./services/avatar-gateway');
+const avatarGateway = createAvatarGateway();
+app.get('/vendor/xmov/avatar-2.4.0.umd.js', (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  res.sendFile(path.join(path.dirname(require.resolve('@xmov/avatar')), 'index.umd.js'));
+});
+app.use('/api/avatar', avatarGateway.router);
+
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
