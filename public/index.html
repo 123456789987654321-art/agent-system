@@ -9,9 +9,9 @@
   <link rel="stylesheet" href="layout.css?v=20260925-layout">
   <link rel="stylesheet" href="dashboard.css?v=20260926-weather-fit-2">
   <link rel="stylesheet" href="dark.css?v=20260926-depth">
-  <link rel="stylesheet" href="avatar.css?v=xmov-20260926-1">
+  <link rel="stylesheet" href="avatar.css?v=avatar2d-20260926-1">
   <link rel="stylesheet" href="device-feedback.css?v=fullbody-1">
-  <script type="module" src="official-avatar.js?v=xmov-20260926-1"></script>
+  <script type="module" src="avatar-2d.js?v=avatar2d-20260926-1"></script>
   <!-- 引入 Chart.js 用于绘制折线图 -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -95,12 +95,12 @@
           </div>
 
           <!-- 右侧：3D 数字人 AI 管家 -->
-          <div class="card avatar-card digital-human-card" id="digitalHumanCard">
+          <div class="card avatar-card digital-human-card agent-offline" id="digitalHumanCard">
             <div class="avatar-card-head">
               <div>
                 <h3>数字人管家</h3>
               </div>
-              <div class="avatar-online" id="avatarOnlineBadge"><span class="avatar-online-dot"></span><span class="avatar-online-text">在线</span></div>
+              <div class="avatar-online" id="avatarOnlineBadge"><span class="avatar-online-dot"></span><span class="avatar-online-text">未启用</span></div>
             </div>
 
             <div class="avatar-container">
@@ -110,14 +110,59 @@
                 <button type="button" class="task-alert-action" onclick="dismissPendingAlert()">忽略</button>
               </div>
               <div class="avatar-3d-wrapper" id="avatarStage">
-                <div class="official-avatar-viewport"><div id="avatar-3d" aria-label="官方数字人画面"></div></div>
-                <div class="avatar-empty" id="avatarEmpty">
-                  <svg class="ui-icon avatar-empty-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-settings"></use></svg>
-                  <strong id="avatarEmptyTitle">官方数字人待配置</strong>
-                  <p id="avatarLoadStatus">在设置中连接官方应用，加载你选择的数字人形象。</p>
-                  <button id="avatarSetup" type="button" class="toggle-btn">前往设置</button>
+                <div class="avatar-2d-viewport" id="avatar-2d">
+                  <svg class="assistant-portrait" viewBox="0 0 420 440" role="img" aria-labelledby="assistantPortraitTitle" xmlns="http://www.w3.org/2000/svg">
+                    <title id="assistantPortraitTitle">浅蓝衣装、深蓝短发的二维数字人管家</title>
+                    <defs>
+                      <linearGradient id="portraitCoat" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#b3dce9"/><stop offset="1" stop-color="#75a9c6"/></linearGradient>
+                      <linearGradient id="portraitHair" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#334d66"/><stop offset="1" stop-color="#20354d"/></linearGradient>
+                      <linearGradient id="portraitSkin" x1="0" y1="0" x2="0.8" y2="1"><stop stop-color="#ffe3cc"/><stop offset="1" stop-color="#eeb99e"/></linearGradient>
+                      <radialGradient id="portraitGlow"><stop stop-color="#f4ffff" stop-opacity=".9"/><stop offset="1" stop-color="#b8dbe7" stop-opacity=".12"/></radialGradient>
+                    </defs>
+                    <circle class="portrait-halo" cx="210" cy="210" r="163" fill="url(#portraitGlow)"/>
+                    <circle cx="210" cy="210" r="150" fill="none" stroke="#b0d0df" stroke-opacity=".55"/>
+                    <path d="M74 226a140 140 0 0 1 65-137M281 330a140 140 0 0 0 63-83" fill="none" stroke="#f6ffff" stroke-opacity=".8" stroke-width="3" stroke-linecap="round"/>
+                    <ellipse cx="210" cy="418" rx="104" ry="10" fill="#4e7a98" opacity=".12"/>
+                    <g class="portrait-body">
+                      <!-- Sloped shoulders and tapered sleeves keep the silhouette light. -->
+                      <path d="M169 250Q143 256 127 274Q115 299 109 350L103 408Q113 421 136 418L152 343L155 421H267L268 343L285 418Q306 421 316 408L310 349Q302 294 289 275Q277 259 250 250Z" fill="url(#portraitCoat)" stroke="#729bb5" stroke-width="1.5" stroke-linejoin="round"/>
+                      <path d="M185 229L184 260Q210 282 237 259L235 226" fill="url(#portraitSkin)"/>
+                      <path d="M185 236Q210 255 235 236L235 248Q211 265 185 249Z" fill="#d99f88" opacity=".4"/>
+                      <path d="M184 258Q210 271 237 258L247 421H172Z" fill="#f2f7f6"/>
+                      <path d="M177 250L157 273L181 295L192 270Z" fill="#d3edf1" stroke="#8ebacb" stroke-width="1.2"/>
+                      <path d="M243 250L261 273L239 295L227 270Z" fill="#d3edf1" stroke="#8ebacb" stroke-width="1.2"/>
+                      <path d="M158 292Q161 352 154 415M265 292Q261 352 268 415" fill="none" stroke="#6895b1" stroke-width="1.5" opacity=".65"/>
+                      <path d="M117 372Q139 385 177 389L181 406Q141 407 108 395M305 372Q282 386 244 390L240 407Q283 407 312 395" fill="#9fcbdc" stroke="#789fb7" stroke-width="1.3"/>
+                      <path d="M177 389Q191 384 205 389L223 398Q231 402 225 407Q219 411 208 405L196 402Q185 409 178 404Z" fill="url(#portraitSkin)" stroke="#ce9a84" stroke-width="1.2"/>
+                      <path d="M244 390Q229 386 218 391L200 401Q194 405 200 409Q206 413 215 407L229 402Q237 408 244 404Z" fill="url(#portraitSkin)" stroke="#ce9a84" stroke-width="1.2"/>
+                      <path d="M219 398L209 403M225 401L216 406" fill="none" stroke="#c8907c" stroke-width="1" stroke-linecap="round"/>
+                      <rect x="245" y="304" width="12" height="20" rx="6" fill="#e6f3f3" stroke="#7ba7bc"/>
+                      <circle cx="251" cy="310" r="2.5" fill="#548b9f"/>
+                      <path d="M248 316h6" stroke="#7ba7bc" stroke-linecap="round"/>
+                    </g>
+                    <g class="portrait-head">
+                      <path d="M145 133Q132 77 174 54Q207 34 244 48Q284 61 279 121L280 208Q278 238 251 253L163 251Q137 236 139 210Z" fill="url(#portraitHair)"/>
+                      <path d="M150 150Q136 144 138 161Q141 178 154 178M267 150Q281 144 279 161Q278 178 264 178" fill="#edb49b"/>
+                      <path d="M156 111Q164 75 209 72Q257 76 266 114L263 174Q258 215 231 236Q211 249 191 236Q160 216 155 177Z" fill="url(#portraitSkin)" stroke="#d8a58e" stroke-width="1.2"/>
+                      <path d="M146 157Q139 123 153 90Q170 51 214 58Q253 54 272 90Q284 115 268 163L256 141L254 107Q221 111 198 87Q184 117 160 126L158 160Z" fill="url(#portraitHair)"/>
+                      <path d="M156 103Q163 69 195 65M212 66Q247 65 261 91" fill="none" stroke="#526b81" stroke-width="3" stroke-linecap="round" opacity=".65"/>
+                      <path d="M162 143Q176 136 189 142M231 142Q245 136 258 144" fill="none" stroke="#4d4b50" stroke-width="3" stroke-linecap="round"/>
+                      <g class="portrait-eyes">
+                        <path d="M161 158Q175 148 189 159Q175 168 161 158M231 159Q245 149 259 158Q245 168 231 159" fill="#fffaf2"/>
+                        <ellipse cx="177" cy="158" rx="5.7" ry="7" fill="#425365"/><ellipse cx="243" cy="158" rx="5.7" ry="7" fill="#425365"/>
+                        <circle cx="177" cy="159" r="3" fill="#25394b"/><circle cx="243" cy="159" r="3" fill="#25394b"/>
+                        <circle cx="179" cy="155" r="1.8" fill="#fff"/><circle cx="245" cy="155" r="1.8" fill="#fff"/>
+                        <path d="M161 158Q175 148 189 159M231 159Q245 149 259 158" fill="none" stroke="#4c4550" stroke-width="2" stroke-linecap="round"/>
+                      </g>
+                      <path d="M209 160L205 179Q210 184 216 179" fill="none" stroke="#ca9581" stroke-width="1.6" stroke-linecap="round"/>
+                      <ellipse cx="171" cy="180" rx="12" ry="5" fill="#de927f" opacity=".23"/><ellipse cx="249" cy="180" rx="12" ry="5" fill="#de927f" opacity=".23"/>
+                      <path class="portrait-smile" d="M196 201Q210 213 225 200Q211 206 196 201Z" fill="#b86d70"/>
+                      <path d="M204 213Q211 215 218 212" fill="none" stroke="#d49686" stroke-width="1" stroke-linecap="round"/>
+                      <g class="portrait-mouth-open"><ellipse cx="211" cy="204" rx="10" ry="6" fill="#904f5b"/><path d="M204 200Q211 202 218 200" stroke="#fff7ed" stroke-width="2" stroke-linecap="round"/><ellipse cx="211" cy="208" rx="5" ry="1.5" fill="#d18a91"/></g>
+                      <circle cx="150" cy="180" r="3.5" fill="#e4efee" stroke="#89a6b5"/><circle cx="269" cy="180" r="3.5" fill="#e4efee" stroke="#89a6b5"/>
+                    </g>
+                  </svg>
                 </div>
-
                 <div class="device-demo-layer" id="deviceDemoLayer" aria-live="polite"></div>
 
                 <div class="sound-wave" aria-hidden="true">
@@ -129,8 +174,8 @@
                 <div class="avatar-caption">
                   <span class="caption-dot"></span>
                   <div>
-                    <strong id="avatarCaptionTitle">管家在线</strong>
-                    <p id="avatarStatusText" class="avatar-status">先生，随时听候您的差遣。</p>
+                    <strong id="avatarCaptionTitle">管家未启用</strong>
+                    <p id="avatarStatusText" class="avatar-status">在「设置」保存 API Key 后启用管家。当前可使用按钮手动控制。</p>
                   </div>
                 </div>
               </div>
@@ -331,20 +376,7 @@
             <span id="saveStatus" style="color: #48bb78; font-weight: bold; display: none;"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-check"></use></svg> <span id="saveStatusText">已生效</span></span>
           </div>
         </div>
-        <div class="card official-avatar-settings">
-          <h3>官方数字人 · 魔珐星云</h3>
-          <p class="avatar-config-help">在官方平台创建「驱动应用」，选择角色、音色和表演风格，再填写下方凭据。大模型 API Key 用于思考与控制，这组凭据用于形象和声音。</p>
-          <p><a href="https://www.xingyun3d.com/" target="_blank" rel="noopener noreferrer">打开官方平台</a> · <a href="https://www.xingyun3d.com/developers/59-502" target="_blank" rel="noopener noreferrer">查看接入说明</a></p>
-          <div class="setting-box"><label for="avatarAppId">App ID</label><input id="avatarAppId" class="api-input" type="text" autocomplete="off" spellcheck="false" placeholder="官方驱动应用的 App ID"></div>
-          <div class="setting-box"><label for="avatarAppSecret">App Secret</label><input id="avatarAppSecret" class="api-input" type="password" autocomplete="off" placeholder="仅用于本次连接，不保存到浏览器"></div>
-          <p class="avatar-config-help">凭据仅临时保存在服务端内存，断开后清除。连接使用官方账户额度；请通过 HTTPS 或 localhost 打开本系统。</p>
-          <div class="settings-actions">
-            <button id="avatarConnect" class="toggle-btn" data-agent-required disabled type="button">连接官方数字人</button>
-            <button id="avatarDisconnect" class="toggle-btn" type="button" disabled>断开</button>
-            <button id="avatarTest" class="toggle-btn" type="button" disabled>测试形象播报</button>
-          </div>
-          <p id="avatarConnectionStatus" class="avatar-config-status" role="status" aria-live="polite">尚未连接官方数字人</p>
-        </div>
+
         </div>
       </div>
 
@@ -371,7 +403,7 @@
     <button type="button" class="global-voice-close" onclick="hideGlobalVoiceStatus(true)" aria-label="关闭语音状态"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-close"></use></svg></button>
   </div>
 
-  <script src="app.js?v=xmov-20260926-1"></script>
-  <script src="report.js?v=xmov-20260926-1"></script>
+  <script src="app.js?v=avatar2d-20260926-1"></script>
+  <script src="report.js?v=avatar2d-20260926-1"></script>
 </body>
 </html>

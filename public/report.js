@@ -111,8 +111,8 @@ window.DailyReport = (() => {
 
   function updateSpeechButtons() {
     document.querySelectorAll('[data-report-speak]').forEach(button => {
-      button.disabled = isAgentOffline() || !speechText || !window.HomeAvatar?.ready;
-      button.title = isAgentOffline() ? '请先在设置中填入 API Key 并保存' : !window.HomeAvatar?.ready ? '请先连接官方数字人' : '';
+      button.disabled = isAgentOffline() || !speechText || !window.HomeAvatar?.canSpeak;
+      button.title = isAgentOffline() ? '请先在设置中填入 API Key 并保存' : !window.HomeAvatar?.canSpeak ? '当前浏览器不支持语音播报' : '';
       button.setAttribute('aria-pressed', String(speaking));
       button.querySelector('span').textContent = speaking ? '停止播报' : '语音播报';
     });
@@ -130,22 +130,19 @@ window.DailyReport = (() => {
     if (speaking) { stopSpeech(); return; }
     if (!speechText) return;
     const status = document.getElementById('reportStatus');
-    if (!window.HomeAvatar?.ready) { status.textContent = '请先在设置中连接官方数字人。'; return; }
+    if (!window.HomeAvatar?.canSpeak) { status.textContent = '当前浏览器不支持语音播报，请阅读文字报告。'; return; }
     window.HomeAvatar.stopSpeech();
     const token = ++speechVersion;
-    const chunks = speechText.match(/[\s\S]{1,160}/g) || [];
     speaking = true;
     updateSpeechButtons();
-    status.textContent = '官方数字人正在播报，可再次点击按钮停止';
+    status.textContent = '管家正在播报，可再次点击按钮停止';
     try {
-      for (const text of chunks) {
-        if (token !== speechVersion || isAgentOffline()) return;
-        const completed = await window.HomeAvatar.speak(text);
-        if (!completed) { if (token === speechVersion) { stopSpeech(); status.textContent = '报告播报已停止'; } return; }
-      }
-      if (token === speechVersion) { stopSpeech(); status.textContent = '报告播报完毕'; }
+      const completed = await window.HomeAvatar.speak(speechText);
+      if (token !== speechVersion) return;
+      stopSpeech();
+      status.textContent = completed ? '报告播报完毕' : '报告播报已停止';
     } catch {
-      if (token === speechVersion) { stopSpeech(); status.textContent = '播报已中断，可连接官方数字人后重试。'; }
+      if (token === speechVersion) { stopSpeech(); status.textContent = '播报已中断，请重新点击语音播报。'; }
     }
   }
 

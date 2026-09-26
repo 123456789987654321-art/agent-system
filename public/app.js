@@ -186,7 +186,7 @@ function startWeatherAutoRefresh() {
 
 // ==== AI 管家在线 / 离线状态（是否已配置可用 API Key）====
 const AGENT_ONLINE_CAPTION = { title: '管家已启用', text: '先生，随时听候您的差遣。' };
-const AGENT_OFFLINE_CAPTION = { title: '管家未启用', text: '请先在「设置」保存大模型 API Key，再连接官方数字人；未配置时可使用按钮手动控制。' };
+const AGENT_OFFLINE_CAPTION = { title: '管家未启用', text: '在「设置」保存 API Key 后启用管家。当前可使用按钮手动控制。' };
 let agentOfflineState = null;
 
 // Only a saved key enables the agent; typing an unsaved draft does not.
@@ -234,7 +234,7 @@ function isAgentOffline() { return !getEffectiveApiKey(); }
 function getAgentIdleTitle() { return isAgentOffline() ? AGENT_OFFLINE_CAPTION.title : AGENT_ONLINE_CAPTION.title; }
 function getAgentIdleText() { return isAgentOffline() ? AGENT_OFFLINE_CAPTION.text : AGENT_ONLINE_CAPTION.text; }
 
-// 未保存大模型密钥时，禁止智能体活动并释放官方数字人会话。
+// 未保存大模型密钥时，禁止智能体活动与数字人语音。
 function updateAgentConnectionState() {
   const offline = isAgentOffline();
   const card = document.getElementById('digitalHumanCard');
@@ -242,8 +242,8 @@ function updateAgentConnectionState() {
   const badgeText = badge ? badge.querySelector('.avatar-online-text') : null;
 
   if (card) card.classList.toggle('agent-offline', offline);
-  if (badge) badge.setAttribute('aria-label', offline ? '未启用：未配置 API Key' : window.HomeAvatar?.ready ? '官方数字人已加载；大模型调用仍需实际验证' : '大模型配置已保存，官方形象待连接');
-  if (badgeText) badgeText.innerText = offline ? '未启用' : window.HomeAvatar?.ready ? '形象已连接' : '待连接形象';
+  if (badge) badge.setAttribute('aria-label', offline ? '未启用：未配置 API Key' : '配置已保存；大模型连接以实际请求结果为准');
+  if (badgeText) badgeText.innerText = offline ? '未启用' : '已启用';
 
   document.querySelectorAll('[data-agent-required]').forEach(button => {
     button.disabled = offline;
@@ -970,7 +970,7 @@ async function triggerFaceDetect() {
   summonButler();
 }
 
-// Official SDK owns audio, lip sync and body animation. No browser TTS substitute.
+// The local portrait follows actual browser speech playback events.
 async function agentSpeak(text) {
   if (isAgentOffline()) return;
   window.DailyReport?.stopSpeech();
@@ -978,8 +978,8 @@ async function agentSpeak(text) {
   const statusEl = document.querySelector('.avatar-status');
   const titleEl = document.getElementById('avatarCaptionTitle');
   if (statusEl) statusEl.innerText = text;
-  if (!window.HomeAvatar?.ready) {
-    if (titleEl) titleEl.innerText = '文字回复 · 官方形象待连接';
+  if (!window.HomeAvatar?.canSpeak) {
+    if (titleEl) titleEl.innerText = '文字回复 · 语音不可用';
     return;
   }
   const version = ++agentSpeechVersion;

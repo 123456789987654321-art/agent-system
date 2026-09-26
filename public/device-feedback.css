@@ -14,7 +14,7 @@ body.dark-mode #avatarStage {
   --feedback-muted: #afc5d8;
   --feedback-accent: #8cdbd0;
 }
-#page-overview #avatarStage.demo-is-active #avatar-3d {
+#page-overview #avatarStage.demo-is-active #avatar-2d {
   right: calc(var(--feedback-width) + 16px); width: auto;
   transform: none; transition: none;
 }

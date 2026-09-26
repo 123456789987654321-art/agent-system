@@ -1,4 +1,4 @@
-> Legacy asset build: the active page now uses the official SDK. See `docs/official-avatar.md`; these local assets are no longer loaded by the application.
+> Legacy 3D assets: the active page uses an original inline SVG portrait. See `docs/avatar-2d.md`. These 3D assets are not loaded.
 
 # Rebuilding the digital human
 
