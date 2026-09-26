@@ -21,6 +21,7 @@ let lastLocationAttemptAt = 0;
 let weatherRefreshTimer = null;
 const WEATHER_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 let avatarRecognition = null;
+let agentRequestController = null;
 let avatarSilenceTimer = null;
 let timerDisplayState = { percent: 0, isAlert: false, state: "idle" };
 let speechInProgress = false;
@@ -183,16 +184,47 @@ function startWeatherAutoRefresh() {
 }
 
 // ==== AI 管家在线 / 离线状态（是否已配置可用 API Key）====
-const AGENT_ONLINE_CAPTION = { title: '管家在线', text: '先生，随时听候您的差遣。' };
-const AGENT_OFFLINE_CAPTION = { title: '管家离线', text: '还没有接入大模型密钥，请到「设置」页填入 API Key 并保存。' };
+const AGENT_ONLINE_CAPTION = { title: '管家已启用', text: '先生，随时听候您的差遣。' };
+const AGENT_OFFLINE_CAPTION = { title: '管家未启用', text: '请在「设置」中填入 API Key 并保存以启用数字人；未配置时可使用页面按钮手动控制。' };
 let agentOfflineState = null;
 
-// 取值优先级：输入框 > 本标签页临时密钥 > 永久保存的密钥
+// Only a saved key enables the agent; typing an unsaved draft does not.
 function getEffectiveApiKey() {
+  const saved = (sessionStorage.getItem('agentApiKey') || localStorage.getItem('agentApiKey') || '').trim();
   const field = document.getElementById('apiKeyInput');
-  const typed = field ? field.value.trim() : '';
-  if (typed) return typed;
-  return sessionStorage.getItem('agentApiKey') || localStorage.getItem('agentApiKey') || '';
+  return field && !field.value.trim() ? '' : saved;
+}
+
+function requireAgentConfiguration() {
+  if (!isAgentOffline()) return true;
+  showGlobalVoiceStatus('请先配置 API', AGENT_OFFLINE_CAPTION.text, 'idle');
+  hideGlobalVoiceStatus();
+  return false;
+}
+
+function stopAgentActivity() {
+  agentRequestController?.abort();
+  agentRequestController = null;
+  if (avatarRecognition) {
+    const recognition = avatarRecognition;
+    avatarRecognition = null;
+    recognition.onstart = recognition.onresult = recognition.onend = recognition.onerror = null;
+    try { recognition.abort(); } catch {}
+  }
+  clearTimeout(avatarSilenceTimer);
+  avatarSilenceTimer = null;
+  window.speechSynthesis?.cancel();
+  window.DailyReport?.stopSpeech();
+  speechInProgress = false;
+  deviceDemoQueue.length = 0;
+  clearTimeout(deviceDemoFlushTimer);
+  deviceDemoTimers.forEach(clearTimeout);
+  deviceDemoTimers = [];
+  deviceDemoActive = false;
+  document.getElementById('deviceDemoLayer')?.replaceChildren();
+  const stage = document.getElementById('avatarStage');
+  if (stage) [...stage.classList].filter(c=>c==='speaking'||c==='listening'||c.startsWith('demo-')).forEach(c=>stage.classList.remove(c));
+  hideGlobalVoiceStatus(true);
 }
 
 function isAgentOffline() { return !getEffectiveApiKey(); }
@@ -207,9 +239,20 @@ function updateAgentConnectionState() {
   const badgeText = badge ? badge.querySelector('.avatar-online-text') : null;
 
   if (card) card.classList.toggle('agent-offline', offline);
-  if (badge) badge.setAttribute('aria-label', offline ? '离线：未配置 API Key' : '在线');
-  if (badgeText) badgeText.innerText = offline ? '离线' : '在线';
+  if (badge) badge.setAttribute('aria-label', offline ? '未启用：未配置 API Key' : '已启用：已保存 API Key，尚不代表调用验证成功');
+  if (badgeText) badgeText.innerText = offline ? '未启用' : '已启用';
 
+  document.querySelectorAll('[data-agent-required]').forEach(button => {
+    button.disabled = offline;
+    button.title = offline ? '请先在设置中填入 API Key 并保存' : '';
+  });
+  const input = document.getElementById('userInput');
+  if (input) {
+    input.disabled = offline;
+    input.placeholder = offline ? '先配置 API Key；未配置时请用按钮操作' : '例如：打开客厅灯，洗衣计时45分钟';
+  }
+  window.DailyReport?.updateSpeechButtons();
+  if (offline) stopAgentActivity();
   if (agentOfflineState === offline) return;
   agentOfflineState = offline;
 
@@ -223,6 +266,12 @@ function initApiKeyWatcher() {
   const field = document.getElementById('apiKeyInput');
   if (!field) return;
   field.addEventListener('input', updateAgentConnectionState);
+  window.addEventListener('storage', event => {
+    if (event.key === 'agentApiKey' || event.key === null) {
+      field.value = sessionStorage.getItem('agentApiKey') || localStorage.getItem('agentApiKey') || '';
+      updateAgentConnectionState();
+    }
+  });
 }
 
 function updatePlaceholder() {
@@ -273,6 +322,8 @@ function switchPage(pageId, element) {
   }
   document.querySelector('.main-block').scrollTop = 0;
   window.scrollTo(0, 0);
+  if (pageId === 'network') window.NetworkPage?.open();
+  else window.NetworkPage?.leave();
   if (pageId === 'weather') fetchWeather();
   if (pageId === 'report') window.DailyReport?.open();
   else window.DailyReport?.leave();
@@ -482,6 +533,7 @@ function renderTaskAlert() {
 }
 
 function speakPendingAlert() {
+  if (!requireAgentConfiguration()) return;
   const alert = pendingTaskAlerts.shift();
   if (!alert) return;
   agentSpeak(alert.text || ('现在要去' + alert.name + '了'));
@@ -529,6 +581,7 @@ async function controlTask(action, seconds) {
 }
 
 async function sendVoiceCommand() {
+  if (!requireAgentConfiguration()) return;
   const text = document.getElementById('userInput').value;
   if (!text) {
     showGlobalVoiceStatus('没有听清', '请点击“呼唤管家”后重新说出指令。', 'idle');
@@ -591,7 +644,7 @@ async function sendVoiceCommand() {
     return;
   }
 
-  const apiKey = document.getElementById('apiKeyInput').value;
+  const apiKey = getEffectiveApiKey();
   const provider = document.querySelector('input[name="provider"]:checked').value;
   const level = document.querySelector('input[name="level"]:checked').value;
 
@@ -603,18 +656,24 @@ async function sendVoiceCommand() {
   if (statusEl) statusEl.innerText = "正在为您思考，请稍候...";
 
   try {
-    const res = await fetch('/api/interact', { 
+    agentRequestController?.abort();
+    agentRequestController = new AbortController();
+    const res = await fetch('/api/interact', {
+      signal: agentRequestController.signal,
       method: 'POST', 
       headers: { 'Content-Type': 'application/json' }, 
       body: JSON.stringify({ text, llmConfig: { apiKey, provider, level } }) 
     });
     const data = await res.json();
+    if (isAgentOffline()) return;
+    if (!res.ok) throw new Error(data.error || '数字人请求失败');
     if (data.reply) agentSpeak(data.reply);
     else {
       showGlobalVoiceStatus('没有回应', '管家暂时没有生成有效回复。', 'idle');
       hideGlobalVoiceStatus();
     }
   } catch (error) {
+    if (error.name === 'AbortError' || isAgentOffline()) return;
     if (statusEl) statusEl.innerText = "抱歉，网络连接或大模型调用出现了异常。";
     showGlobalVoiceStatus('连接异常', '网络连接或大模型调用出现了异常。', 'idle');
     hideGlobalVoiceStatus();
@@ -674,6 +733,7 @@ function hideGlobalVoiceStatus(force = false) {
 }
 
 function summonButler() {
+  if (!requireAgentConfiguration()) return;
   if (avatarRecognition) {
     avatarRecognition.stop();
     showGlobalVoiceStatus('呼唤管家', '正在结束本次语音识别...', 'thinking');
@@ -755,6 +815,7 @@ function setDeviceDemoButton(scene, isOn) {
 }
 
 function queueDeviceDemo(deviceKey, nextState, previousState) {
+  if (isAgentOffline()) return;
   if (nextState === previousState) return;
   deviceDemoQueue.push({ deviceKey, nextState, previousState });
   clearTimeout(deviceDemoFlushTimer);
@@ -762,11 +823,13 @@ function queueDeviceDemo(deviceKey, nextState, previousState) {
 }
 
 function flushDeviceDemoQueue() {
+  if (isAgentOffline()) { deviceDemoQueue.length = 0; return; }
   if (speechInProgress || deviceDemoActive || !deviceDemoQueue.length) return;
   playDeviceDemo(deviceDemoQueue.shift());
 }
 
 function playDeviceDemo(event) {
+  if (isAgentOffline()) return;
   const layer = document.getElementById('deviceDemoLayer');
   const stage = document.getElementById('avatarStage');
   if (!layer || !stage) return;
@@ -815,10 +878,12 @@ function closeDeviceDemo(scene, stage, layer, action) {
 }
 
 function greetDigitalHuman() {
+  if (!requireAgentConfiguration()) return;
   agentSpeak("您好，我是您的数字人管家。您可以让我控制灯光、门窗、家电，或者为您安排定时任务。");
 }
 
 function startAvatarListening() {
+  if (!requireAgentConfiguration()) return;
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   const stage = document.getElementById('avatarStage');
   const statusEl = document.querySelector('.avatar-status');
@@ -905,6 +970,8 @@ async function triggerFaceDetect() {
 
 // 3D 动作与语音同步联动
 function agentSpeak(text) {
+  if (isAgentOffline()) return;
+  if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) return;
   window.DailyReport?.stopSpeech();
   const statusEl = document.querySelector('.avatar-status');
   const stage = document.getElementById('avatarStage');

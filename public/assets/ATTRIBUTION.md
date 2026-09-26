@@ -14,10 +14,11 @@ https://static.makehumancommunity.org/assets/assetpacks/suits01.html
 https://static.makehumancommunity.org/assets/assetpacks/shoes01.html
 
 Changes: replace the casual outfit with a navy trouser suit and dark leather
-flats; fit the collar and cuffs with the authored body correspondences, smoothly
-blend the fit into the tailored torso, smooth transferred skeleton weights
-across the shoulders, adjust the arm
-pose, retain seven facial expression channels, remove unused data, resize
+flats; fit the shoulders, full sleeves and collar with the authored body
+correspondences, smoothly blend the fit into the tailored torso, smooth
+transferred skeleton weights across the shoulders, preserve the original outfit
+as a weight source for the cut-away torso (not as a rendered mesh), and apply
+a relaxed arm pose with forward elbow bends; retain seven facial expression channels, remove unused data, resize
 textures to at most 2048 pixels, convert textures to WebP, and compress geometry
 with Meshoptimizer. The static fallback is rendered from this same model.
 No Youyan models, likenesses, images, or services are included.

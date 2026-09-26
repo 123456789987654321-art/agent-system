@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from './vendor/three/loaders/GLTFLoader.js';
 import { RoomEnvironment } from './vendor/three/environments/RoomEnvironment.js';
 import { MeshoptDecoder } from './vendor/meshoptimizer/meshopt_decoder.mjs';
+import { relaxArms } from './avatar-rig.mjs?v=arms-fit-20260926';
 
 // Self-hosted, CC0 human mesh. Voice state controls subtle expressions, not phoneme lip sync.
 const host = document.getElementById('avatar-3d');
@@ -108,7 +109,7 @@ async function loadModel() {
   try {
     if (!renderer) createRenderer();
     const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-    const gltf = await loader.loadAsync('./assets/home-assistant.glb?v=portrait-seams-2', event => {
+    const gltf = await loader.loadAsync('./assets/home-assistant.glb?v=arms-fit-20260926', event => {
       if(event.total) status.textContent = '正在加载三维形象 ' + Math.round(event.loaded/event.total*100) + '%';
     });
     model = gltf.scene;
@@ -132,21 +133,7 @@ async function loadModel() {
       if(object.name==='Spine2') {spine=object;spineRest=object.quaternion.clone();}
     });
     pivot.add(model);
-    // Relax the A-pose using the actual arm skeleton; keep the hand rig intact.
-    model.updateMatrixWorld(true);
-    for(const [name,direction] of [
-      ['LeftArm',new THREE.Vector3(.19,-.97,.13)],['RightArm',new THREE.Vector3(-.19,-.97,.13)],
-      ['LeftForeArm',new THREE.Vector3(.02,-.98,.17)],['RightForeArm',new THREE.Vector3(-.02,-.98,.17)]
-    ]) {
-      const bone=model.getObjectByName(name);
-      if(!bone)continue;
-      const world=bone.getWorldQuaternion(new THREE.Quaternion());
-      const current=new THREE.Vector3(0,1,0).applyQuaternion(world);
-      const delta=new THREE.Quaternion().setFromUnitVectors(current.normalize(),direction.normalize());
-      const parent=bone.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
-      bone.quaternion.copy(parent.multiply(delta).multiply(world));
-      model.updateMatrixWorld(true);
-    }
+    relaxArms(model);
     stage.classList.add('avatar-model-ready');
     window.HomeAvatar.ready = true;
     status.textContent = '三维形象已加载';
@@ -168,7 +155,7 @@ function frame(now) {
   requestAnimationFrame(frame);
   if(!renderer || !model || !visible || document.hidden || now-lastFrame<32) return;
   lastFrame=now; frames++;
-  const t=now/1000, animate=!reducedMotion.matches;
+  const t=now/1000, animate=!reducedMotion.matches && !stage.closest('.digital-human-card')?.classList.contains('agent-offline');
   const speaking=animate && stage.classList.contains('speaking');
   const listening=stage.classList.contains('listening');
   if(t>nextBlink && animate){blinkStart=t;nextBlink=t+3.2+Math.random()*3;}

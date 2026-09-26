@@ -11,6 +11,9 @@ const reportStore = createDailyReportStore({
   filePath: process.env.REPORT_DATA_FILE || path.join(__dirname, '.data', 'report-events.json')
 });
 
+const { createNetworkService, isLocalNetworkRequest } = require('./services/network-status');
+const readNetworkStatus = createNetworkService();
+
 const app = express();
 app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders(res, filePath) {
@@ -356,11 +359,11 @@ function scheduleTask(action) {
 
 // 核心：处理 Agent 推理与动态 LLM 调用
 async function processAgentThought(userInput, llmConfig) {
+  const apiKey = typeof llmConfig?.apiKey === 'string' ? llmConfig.apiKey.trim() : '';
+  if (!apiKey) return '请先前往设置页面，填入您的 AI 密钥。';
+
   const explicitDeviceReply = await handleExplicitDeviceCommand(userInput);
   if (explicitDeviceReply) return explicitDeviceReply.reply;
-
-  const apiKey = String(llmConfig?.apiKey || '').trim();
-  if (!apiKey) return '请先前往设置页面，填入您的 AI 密钥。';
 
   const deviceNameList = DEVICE_DEFINITIONS
     .map(device => `${device.key}=${device.name}`)
@@ -450,7 +453,11 @@ async function processAgentThought(userInput, llmConfig) {
 }
 
 app.post('/api/interact', async (req, res) => {
-  const { text, llmConfig } = req.body;
+  const { text, llmConfig } = req.body || {};
+  if (typeof llmConfig?.apiKey !== 'string' || !llmConfig.apiKey.trim()) {
+    return res.status(401).json({ error: '请先在设置中填入 API Key 并保存，或使用页面按钮手动控制。', code: 'API_KEY_REQUIRED' });
+  }
+  if (typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: '指令不能为空' });
   const reply = await processAgentThought(text, llmConfig);
   res.json({ reply });
 });
@@ -588,6 +595,13 @@ app.get('/api/report/today', (req, res) => {
     if (error instanceof RangeError) return res.status(400).json({ error: '无效的时区' });
     res.status(500).json({ error: '报告暂时无法生成' });
   }
+});
+
+app.get('/api/network/wifi', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.set('Vary', 'Host, Origin, Sec-Fetch-Site');
+  if (!isLocalNetworkRequest(req)) return res.json({ available: false, reason: 'remote_device' });
+  res.json(await readNetworkStatus());
 });
 
 app.get('/health', (req, res) => {

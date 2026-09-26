@@ -78,6 +78,7 @@ window.DailyReport = (() => {
     // Read the same content shown on screen, including the visible activity log.
     speechText = `${data.date}，居家日报。${summary}\n${groups.map(([title, text]) => `${title}。${text}`).join('\n')}\n今日活动记录。${timelineEvents.length ? timelineEvents.map(event => `${clock(event.at)}，${eventText(event)}。`).join('\n') : '暂无活动记录。'}${events.length > 100 ? '以上为最近一百条活动。' : ''}${data.storageWarning ? '\n' + data.storageWarning : ''}`;
     document.querySelectorAll('[data-report-action]').forEach(button => { button.disabled = false; });
+    updateSpeechButtons();
   }
 
   async function refresh() {
@@ -111,6 +112,8 @@ window.DailyReport = (() => {
 
   function updateSpeechButtons() {
     document.querySelectorAll('[data-report-speak]').forEach(button => {
+      button.disabled = isAgentOffline() || !speechText;
+      button.title = isAgentOffline() ? '请先在设置中填入 API Key 并保存' : '';
       button.setAttribute('aria-pressed', String(speaking));
       button.querySelector('span').textContent = speaking ? '停止播报' : '语音播报';
     });
@@ -125,6 +128,7 @@ window.DailyReport = (() => {
   }
 
   function speak() {
+    if (!requireAgentConfiguration()) return;
     if (speaking) { stopSpeech(); return; }
     if (!speechText) return;
     if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
@@ -137,7 +141,7 @@ window.DailyReport = (() => {
     speaking = true;
     updateSpeechButtons();
     const next = () => {
-      if (token !== speechVersion) return;
+      if (token !== speechVersion || isAgentOffline()) return;
       const text = chunks.shift();
       if (!text) { stopSpeech(); document.getElementById('reportStatus').textContent = '报告播报完毕'; return; }
       currentUtterance = new SpeechSynthesisUtterance(text);
@@ -171,5 +175,5 @@ window.DailyReport = (() => {
     else if (isOpen()) refresh();
   });
   setInterval(() => { if (isOpen() && document.visibilityState !== 'hidden' && !speaking) refresh(); }, 60000);
-  return { open: refresh, refresh, invalidate, speak, stopSpeech, expand, close, leave };
+  return { open: refresh, refresh, invalidate, speak, stopSpeech, updateSpeechButtons, expand, close, leave };
 })();

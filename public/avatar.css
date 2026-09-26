@@ -16,6 +16,8 @@
 #avatar-3d canvas:focus-visible { outline: 2px solid #31769e; outline-offset: -4px; border-radius: 10px; }
 .avatar-poster { position: absolute; inset: 0 0 var(--avatar-caption-space, 88px); width: 100%; height: calc(100% - var(--avatar-caption-space, 88px)); object-fit: contain; object-position: center; z-index: 1; }
 .avatar-model-ready .avatar-poster, .avatar-model-ready .avatar-loading { display: none; }
+/* A failed WebGL canvas must not overlap the static fallback. */
+.avatar-model-failed #avatar-3d { visibility: hidden; }
 .avatar-loading { position: absolute; left: 8px; right: 8px; bottom: calc(var(--avatar-caption-space, 88px) + 8px); z-index: 4; display: flex; align-items: center; justify-content: center; gap: 8px; color: #294962; font-size: 11px; }
 .avatar-loading span { padding: 4px 8px; border-radius: 6px; background: #e2ecf4ed; }
 #avatarRetry { border: 1px solid #507896; border-radius: 6px; color: #244964; background: #e3eef6; padding: 4px 8px; cursor: pointer; }
@@ -58,3 +60,6 @@ body.dark-mode #page-overview .projection-screen {
 @media (prefers-reduced-motion: reduce) {
   #page-overview .digital-human-card #avatar-3d, #page-overview .sound-wave span { animation: none; transition: none; }
 }
+
+/* Manual controls stay available; only agent actions require a saved API key. */
+[data-agent-required]:disabled, #userInput:disabled { opacity: .6; cursor: not-allowed; }

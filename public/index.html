@@ -9,10 +9,11 @@
   <link rel="stylesheet" href="layout.css?v=20260925-layout">
   <link rel="stylesheet" href="dashboard.css?v=20260926-weather-fit-2">
   <link rel="stylesheet" href="dark.css?v=20260926-depth">
-  <link rel="stylesheet" href="avatar.css?v=fullbody-1">
+  <link rel="stylesheet" href="avatar.css?v=20260926-agent-gate-1">
   <link rel="stylesheet" href="device-feedback.css?v=fullbody-1">
+  <link rel="stylesheet" href="network.css?v=20260926-network-1">
   <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js"}}</script>
-  <script type="module" src="avatar.js?v=portrait-seams-2"></script>
+  <script type="module" src="avatar.js?v=20260926-agent-gate-1"></script>
   <!-- 引入 Chart.js 用于绘制折线图 -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -25,9 +26,10 @@
         <button type="button" class="nav-item" aria-current="false" onclick="switchPage('appliances', this)"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-devices"></use></svg> 家电</button>
         <button type="button" class="nav-item" aria-current="false" onclick="switchPage('weather', this)"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-cloud-sun"></use></svg> 天气</button>
         <button type="button" class="nav-item report-nav" aria-current="false" onclick="switchPage('report', this)"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925-report#icon-report"></use></svg> 报告</button>
+        <button type="button" class="nav-item" aria-current="false" onclick="switchPage('network', this)"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260926-network#icon-wifi"></use></svg> 网络</button>
         <button type="button" class="nav-item" aria-current="false" onclick="switchPage('settings', this)"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-settings"></use></svg> 设置</button>
       </div>
-      <button class="wake-btn" aria-label="呼唤管家" onclick="summonButler()"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-mic"></use></svg> <span class="wake-label">呼唤管家</span></button>
+      <button class="wake-btn" aria-label="呼唤管家" data-agent-required disabled onclick="summonButler()"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-mic"></use></svg> <span class="wake-label">呼唤管家</span></button>
     </aside>
 
     <!-- 右侧主内容区 -->
@@ -90,8 +92,8 @@
           <div class="card input-card">
             <h3><label for="userInput">指令输入</label></h3>
             <div class="input-group">
-              <input type="text" id="userInput" aria-label="输入家居控制指令" placeholder="例如：打开客厅灯，洗衣计时45分钟">
-              <button onclick="sendVoiceCommand()">发送</button>
+              <input type="text" id="userInput" disabled aria-label="输入家居控制指令" placeholder="例如：打开客厅灯，洗衣计时45分钟">
+              <button data-agent-required disabled onclick="sendVoiceCommand()">发送</button>
             </div>
           </div>
 
@@ -107,11 +109,11 @@
             <div class="avatar-container">
               <div class="task-alert-bar" id="taskAlertBar" hidden>
                 <span class="task-alert-text" id="taskAlertText"></span>
-                <button type="button" class="task-alert-action" onclick="speakPendingAlert()"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-volume"></use></svg> 播报</button>
+                <button type="button" class="task-alert-action" data-agent-required disabled onclick="speakPendingAlert()"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-volume"></use></svg> 播报</button>
                 <button type="button" class="task-alert-action" onclick="dismissPendingAlert()">忽略</button>
               </div>
               <div class="avatar-3d-wrapper" id="avatarStage">
-                <img class="avatar-poster" src="assets/home-assistant.webp?v=portrait-seams-2" alt="数字管家静态形象">
+                <img class="avatar-poster" src="assets/home-assistant.webp?v=arms-fit-20260926" alt="数字管家静态形象">
                 <div id="avatar-3d"></div>
                 <div class="avatar-loading" role="status"><span id="avatarLoadStatus">正在加载三维形象</span><button id="avatarRetry" type="button" hidden>重新加载</button></div>
 
@@ -133,8 +135,8 @@
               </div>
 
               <div class="avatar-actions">
-                <button class="avatar-action primary" type="button" onclick="startAvatarListening()"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-mic"></use></svg> 对管家说话</button>
-                <button class="avatar-action" type="button" onclick="greetDigitalHuman()"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-wave"></use></svg> 打招呼</button>
+                <button class="avatar-action primary" type="button" data-agent-required disabled onclick="startAvatarListening()"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-mic"></use></svg> 对管家说话</button>
+                <button class="avatar-action" type="button" data-agent-required disabled onclick="greetDigitalHuman()"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-wave"></use></svg> 打招呼</button>
               </div>
             </div>
           </div>
@@ -289,7 +291,53 @@
         <p id="reportStatus" class="report-status" role="status" aria-live="polite"></p>
       </div>
 
-      <!-- 页面 5：设置 -->
+      <!-- 网络 -->
+      <div id="page-network" class="page-view">
+        <div class="page-heading network-toolbar">
+          <div><h2>网络</h2><p>查看此设备的连接状态、Wi-Fi 与页面流量。</p></div>
+          <div class="network-actions"><span id="networkOnline" class="network-badge" role="status">正在检测</span><button type="button" id="networkRefresh" class="network-button"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg#icon-refresh"></use></svg> 刷新网络</button></div>
+        </div>
+        <div class="network-summary">
+          <div class="card"><span>当前连接方式</span><strong id="networkType">—</strong><span>以设备实际报告为准</span></div>
+          <div class="card"><span>连接质量估计</span><strong id="networkQuality">—</strong><span>网络体验，不代表 4G / 5G 制式</span></div>
+          <div class="card"><span>下载带宽估计</span><strong id="networkDownlink">—</strong><span>浏览器估计值，非实时测速</span></div>
+          <div class="card"><span>往返延迟估计</span><strong id="networkRtt">—</strong><span>浏览器未提供时显示 —</span></div>
+        </div>
+        <div class="network-columns">
+          <section class="card" aria-labelledby="networkWifiTitle">
+            <div class="network-card-heading"><h3 id="networkWifiTitle"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260926-network#icon-wifi"></use></svg> 附近 Wi-Fi</h3><span id="networkWifiCount"></span></div>
+            <p id="networkWifiEmpty" class="network-empty" role="status">进入页面后读取可用网络。</p>
+            <ul id="networkWifiList" class="network-wifi-list" aria-label="可见 Wi-Fi 网络"></ul>
+            <p id="networkScanTime" class="network-muted"></p>
+            <p class="network-muted">仅展示可读取的信息；连接或切换网络请使用系统设置。列表信号为系统报告的强度百分比。</p>
+          </section>
+          <div class="network-side">
+            <section class="card" aria-labelledby="networkCellularTitle">
+              <h3 id="networkCellularTitle">移动数据</h3>
+              <p id="networkCellular" class="network-cellular-state">正在检测</p>
+              <p class="network-muted">网页无法读取运营商、手机信号格数和套餐剩余流量。请在系统设置或运营商 App 中查看。</p>
+              <div class="network-data-row"><span>浏览器省流量模式</span><strong id="networkSaveData">—</strong></div>
+            </section>
+            <section class="card" aria-labelledby="networkTrafficTitle">
+              <h3 id="networkTrafficTitle">本页已统计下载量</h3>
+              <p id="networkTraffic" class="network-traffic-number">0 B</p>
+              <p id="networkTrafficSince" class="network-muted">从本次打开页面起统计</p>
+              <p id="networkResources" class="network-muted"></p>
+              <div class="network-traffic-controls"><button type="button" id="networkResetTraffic" class="network-button secondary">重新计数</button></div>
+              <p class="network-muted">仅累计浏览器允许读取的页面资源，不含上传、WebSocket、其他 App 和套餐用量；缓存及部分跨域资源可能不计入。刷新页面会重新计数。</p>
+            </section>
+          </div>
+        </div>
+        <details class="card network-help">
+          <summary>在手机或电脑上查看完整网络信息</summary>
+          <div class="network-help-grid">
+            <div><strong>Windows 电脑</strong><p>设置 → 网络和 Internet → Wi-Fi → 显示可用网络。本项目在本机通过 localhost 打开时，可在上方读取 Wi-Fi 列表。</p><a id="networkWindowsSettings" class="network-button secondary" href="ms-settings:network-wifi" hidden>打开 Wi-Fi 设置</a></div>
+            <div><strong>安卓手机</strong><p>打开系统「设置」，进入「WLAN / Wi-Fi」查看附近网络；进入「移动网络 / 流量管理」查看移动数据。不同品牌的菜单名称可能不同。</p></div>
+            <div><strong>iPhone / iPad</strong><p>设置 → Wi-Fi 查看附近网络；设置 → 蜂窝网络查看移动数据与用量。网页不会读取手机的 Wi-Fi 列表或 SIM 卡资料。</p></div>
+          </div>
+        </details>
+      </div>
+
       <div id="page-settings" class="page-view">
         <div class="page-heading"><div><h2>系统设置</h2></div></div>
         <div class="settings-grid">
@@ -355,7 +403,8 @@
     <button type="button" class="global-voice-close" onclick="hideGlobalVoiceStatus(true)" aria-label="关闭语音状态"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-close"></use></svg></button>
   </div>
 
-  <script src="app.js?v=fullbody-1"></script>
-  <script src="report.js?v=20260926-trim"></script>
+  <script src="app.js?v=20260926-agent-gate-1"></script>
+  <script src="network.js?v=20260926-network-1"></script>
+  <script src="report.js?v=20260926-agent-gate-1"></script>
 </body>
 </html>
