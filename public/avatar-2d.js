@@ -1,4 +1,4 @@
-import { AvatarSpeech } from './avatar-speech.mjs?v=avatar25d-20260926-1';
+import { AvatarSpeech } from './avatar-speech.mjs?v=avatar-tech-20260926-1';
 
 const stage = document.getElementById('avatarStage');
 const host = document.getElementById('avatar-2d');
@@ -24,7 +24,7 @@ function resize() {
   if (stage.style.getPropertyValue('--avatar-caption-space') !== space) stage.style.setProperty('--avatar-caption-space', space);
   const compact = host.clientHeight > 0 && host.clientHeight < 180;
   stage.classList.toggle('avatar-compact', compact);
-  const viewBox = compact ? '100 25 220 300' : '0 0 420 500';
+  const viewBox = compact ? '105 45 210 285' : '0 0 420 440';
   const portrait = host.querySelector('svg');
   if (portrait.getAttribute('viewBox') !== viewBox) portrait.setAttribute('viewBox', viewBox);
 }
