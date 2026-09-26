@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>智能家居中控系统</title>
-  <link rel="stylesheet" href="style.css?v=20260925-contrast">
+  <link rel="stylesheet" href="style.css?v=task-speech-priority-20260927-1">
   <link rel="stylesheet" href="report.css?v=20260925-cn">
   <link rel="stylesheet" href="layout.css?v=20260925-layout">
   <link rel="stylesheet" href="dashboard.css?v=20260926-weather-fit-2">
@@ -106,6 +106,7 @@
             <div class="avatar-container">
               <div class="task-alert-bar" id="taskAlertBar" hidden>
                 <span class="task-alert-text" id="taskAlertText"></span>
+                <select id="taskAlertSelect" class="task-alert-select" aria-label="选择待播报提醒" hidden onchange="selectPendingAlert(this.value)"></select>
                 <button type="button" id="taskAlertSpeak" class="task-alert-action" data-agent-required disabled onclick="speakPendingAlert()"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-volume"></use></svg> 播报</button>
                 <button type="button" id="taskAlertDismiss" class="task-alert-action" onclick="dismissPendingAlert()">忽略</button>
               </div>
@@ -510,8 +511,8 @@
   </div>
 
   <script src="task-parser.js?v=reminders-20260927-1"></script>
-  <script src="task-alerts.js?v=reminder-recovery-20260927-1"></script>
-  <script src="app.js?v=reminder-recovery-20260927-1"></script>
+  <script src="task-alerts.js?v=task-speech-priority-20260927-1"></script>
+  <script src="app.js?v=task-speech-priority-20260927-1"></script>
   <script src="report.js?v=avatar-tech-20260926-1"></script>
 </body>
 </html>

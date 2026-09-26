@@ -16,11 +16,12 @@ function fixture() {
     isAgentOffline: () => false, requireAgentConfiguration: () => true,
     getAgentIdleTitle: () => '待命', showGlobalVoiceStatus() {}, hideGlobalVoiceStatus() {},
     renderUI() {}, flushDeviceDemoQueue() {}, console,
-    agentSpeechVersion: 0, speechInProgress: false,
+    agentSpeechVersion: 0, speechInProgress: false, activeTaskAlertSpeech: null,
     AbortController, setTimeout, clearTimeout,
     fetch: async (url, options) => { requests.push({ url, ...options }); return { ok: true, json: async () => ({ success: true }) }; }
   });
   vm.runInContext(controllerSource, context);
+  vm.runInContext(source.slice(source.indexOf('function escapeHtml('), source.indexOf('// 动态渲染设备')), context);
   vm.runInContext(source.slice(source.indexOf('// 实时到点自动播报'), source.indexOf('// ==== 倒计时框控制')), context);
   vm.runInContext(source.slice(source.indexOf('async function agentSpeak('), source.indexOf('initApiKeyWatcher();')), context);
   vm.runInContext(source.slice(source.indexOf('function handleSocketMessage('), source.indexOf('function connectSocket(')), context);
@@ -114,4 +115,47 @@ test('a due alert waits for an existing reply and plays after it finishes', asyn
   await flush();
   assert.equal(spoken.length, 1);
   assert.equal(JSON.parse(requests[0].body).id, 'waiting');
+});
+
+test('a late operation reply cannot interrupt the due reminder it just triggered', async () => {
+  const { context, send, requests } = fixture();
+  const utterances = [];
+  let finish;
+  context.window.HomeAvatar.speak = text => {
+    if (finish) finish(false); // Browser replacement cancels the previous utterance.
+    utterances.push(text);
+    return new Promise(resolve => { finish = resolve; });
+  };
+  send('TASK_DONE', { id: 'trash', name: '倒垃圾', text: '提醒时间到了，该倒垃圾了。' });
+  const reply = context.agentSpeak('已把倒垃圾提前五分钟');
+  assert.deepEqual(utterances, ['提醒时间到了，该倒垃圾了。']);
+  finish(true);
+  await flush();
+  assert.equal(JSON.parse(requests[0].body).id, 'trash');
+  assert.deepEqual(utterances, ['提醒时间到了，该倒垃圾了。', '已把倒垃圾提前五分钟']);
+  finish(true);
+  await reply;
+});
+
+test('the user can choose trash instead of repeatedly retrying the first failed reminder', async () => {
+  const { context, send, spoken, requests, element } = fixture();
+  send('TASK_ALERTS', [{ id: 'shower', name: '洗澡', text: '该洗澡了' }, { id: 'trash', name: '倒垃圾', text: '该倒垃圾了' }]);
+  context.selectPendingAlert('trash');
+  assert.match(element('taskAlertText').innerText, /倒垃圾/);
+  assert.equal(element('taskAlertSelect').value, 'trash');
+  await context.speakPendingAlert();
+  assert.equal(spoken[0].text, '该倒垃圾了');
+  assert.equal(JSON.parse(requests[0].body).id, 'trash');
+  assert.match(element('taskAlertText').innerText, /洗澡/);
+  assert.equal(element('taskAlertSelect').hidden, true);
+});
+
+test('ignoring a selected reminder acknowledges only that reminder without speech', async () => {
+  const { context, send, spoken, requests, element } = fixture();
+  send('TASK_ALERTS', [{ id: 'shower', name: '洗澡' }, { id: 'trash', name: '倒垃圾' }]);
+  context.selectPendingAlert('trash');
+  await context.dismissPendingAlert();
+  assert.equal(spoken.length, 0);
+  assert.equal(JSON.parse(requests[0].body).id, 'trash');
+  assert.match(element('taskAlertText').innerText, /洗澡/);
 });

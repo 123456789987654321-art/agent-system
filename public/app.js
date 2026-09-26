@@ -27,6 +27,7 @@ let avatarSilenceTimer = null;
 let timerDisplayState = { percent: 0, isAlert: false, state: "idle" };
 let speechInProgress = false;
 let agentSpeechVersion = 0;
+let activeTaskAlertSpeech = null;
 let globalVoiceHideTimer = null;
 const AVATAR_INITIAL_TIMEOUT_MS = 6000;
 const AVATAR_SILENCE_TIMEOUT_MS = 1200;
@@ -432,9 +433,10 @@ function parseRelativeDelay(text) {
 
 // 实时到点自动播报；重新进入页面时恢复的未读提醒只等待用户选择。
 let pendingTaskAlerts = [];
+let selectedTaskAlertId = null;
 const taskAlerts = TaskAlerts.createController({
   canSpeak: () => !isAgentOffline() && !!window.HomeAvatar?.canSpeak && !speechInProgress,
-  speak: text => agentSpeak(text, { continueWhenHidden: true, throwOnError: true }),
+  speak: text => agentSpeak(text, { continueWhenHidden: true, throwOnError: true, taskAlert: true }),
   acknowledge: async id => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
@@ -449,7 +451,7 @@ const taskAlerts = TaskAlerts.createController({
 });
 window.addEventListener('agent-speech-ready', () => { renderTaskAlert(); void taskAlerts.resume(); });
 document.addEventListener('click', event => {
-  if (event.isTrusted && !event.target?.closest?.('#taskAlertSpeak, #taskAlertDismiss')) void taskAlerts.retryFailed();
+  if (event.isTrusted && !event.target?.closest?.('#taskAlertBar')) void taskAlerts.retryFailed();
 });
 
 function handleTaskDone(task) {
@@ -460,12 +462,22 @@ function renderTaskAlert() {
   const bar = document.getElementById('taskAlertBar');
   const textEl = document.getElementById('taskAlertText');
   if (!bar) return;
-  const alert = pendingTaskAlerts.find(item => item.speaking) || pendingTaskAlerts[0];
+  const alert = pendingTaskAlerts.find(item => item.speaking)
+    || pendingTaskAlerts.find(item => item.id === selectedTaskAlertId) || pendingTaskAlerts[0];
   if (!alert) {
+    selectedTaskAlertId = null;
     bar.hidden = true;
     return;
   }
+  selectedTaskAlertId = alert.id;
   bar.hidden = false;
+  const select = document.getElementById('taskAlertSelect');
+  if (select) {
+    select.hidden = pendingTaskAlerts.length < 2;
+    select.disabled = alert.speaking;
+    select.innerHTML = pendingTaskAlerts.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`).join('');
+    select.value = alert.id;
+  }
   const extra = pendingTaskAlerts.length > 1 ? '（还有 ' + (pendingTaskAlerts.length - 1) + ' 条）' : '';
   const label = alert.speaking ? '正在播报：' : alert.replayed ? '到期未处理：' : '到点提醒：';
   const status = alert.error || (!alert.replayed && !alert.speaking
@@ -480,13 +492,19 @@ function renderTaskAlert() {
   if (dismissButton) dismissButton.disabled = alert.speaking;
 }
 
+function selectPendingAlert(id) {
+  if (pendingTaskAlerts.some(item => item.speaking)) return;
+  if (pendingTaskAlerts.some(item => item.id === id)) selectedTaskAlertId = id;
+  renderTaskAlert();
+}
+
 function speakPendingAlert() {
   if (!requireAgentConfiguration()) return;
-  return taskAlerts.speakNext();
+  return taskAlerts.speakNext(selectedTaskAlertId || undefined);
 }
 
 function dismissPendingAlert() {
-  return taskAlerts.dismissNext();
+  return taskAlerts.dismissNext(selectedTaskAlertId || undefined);
 }
 
 // ==== 倒计时框控制：暂停 / 继续 / 清除 / 延长 / 提前 ====
@@ -886,8 +904,12 @@ async function triggerFaceDetect() {
 // The local portrait follows actual browser speech playback events.
 async function agentSpeak(text, options = {}) {
   if (isAgentOffline()) return false;
+  // A late command response must not cancel the reminder triggered by that command.
+  if (activeTaskAlertSpeech && !options.taskAlert) {
+    try { await activeTaskAlertSpeech; } catch { /* The alert retains its own failure. */ }
+    return agentSpeak(text, options);
+  }
   window.DailyReport?.stopSpeech();
-  window.speechSynthesis?.cancel();
   const statusEl = document.querySelector('.avatar-status');
   const titleEl = document.getElementById('avatarCaptionTitle');
   if (statusEl) statusEl.innerText = text;
@@ -899,8 +921,11 @@ async function agentSpeak(text, options = {}) {
   speechInProgress = true;
   if (titleEl) titleEl.innerText = '管家回应中';
   showGlobalVoiceStatus('管家回应中', text, 'speaking');
+  let playback;
   try {
-    const completed = await window.HomeAvatar.speak(text, options);
+    playback = window.HomeAvatar.speak(text, options);
+    if (options.taskAlert) activeTaskAlertSpeech = playback;
+    const completed = await playback;
     if (version === agentSpeechVersion && titleEl) titleEl.innerText = completed ? getAgentIdleTitle() : '播报已停止';
     return completed === true;
   }
@@ -910,6 +935,7 @@ async function agentSpeak(text, options = {}) {
     return false;
   }
   finally {
+    if (activeTaskAlertSpeech === playback) activeTaskAlertSpeech = null;
     if (version === agentSpeechVersion) {
       speechInProgress = false;
       setTimeout(flushDeviceDemoQueue, 240);

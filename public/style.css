@@ -802,7 +802,10 @@ body.dark-mode .digital-human-card.agent-offline .avatar-online { background: rg
 
 .task-alert-bar { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; padding: 8px 10px; border-radius: 10px; border: 1px solid #ff5b5b; background: rgba(255, 91, 91, 0.08); font-size: 12px; }
 .task-alert-bar[hidden] { display: none; }
-.task-alert-text { flex: 1; color: var(--text-main); }
+.task-alert-text { flex: 1; min-width: 0; color: var(--text-main); }
+.task-alert-bar { flex-wrap: wrap; }
+.task-alert-select { max-width: 120px; min-width: 0; padding: 4px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--panel-bg); color: var(--text-main); font: inherit; }
+.task-alert-select[hidden] { display: none; }
 
 
 /* Shared, unfilled line icons. Inherit text color in both themes. */

@@ -82,10 +82,9 @@
         }
         return drain();
       },
-      speakNext() { const first = pending.keys().next().value; return first ? play(first) : Promise.resolve(false); },
-      async dismissNext() {
-        const first = pending.keys().next().value;
-        if (first && first !== speakingId) await complete(first);
+      speakNext(id = pending.keys().next().value) { return id ? play(id) : Promise.resolve(false); },
+      async dismissNext(id = pending.keys().next().value) {
+        if (pending.has(id) && id !== speakingId) await complete(id);
       },
       remove
     };
