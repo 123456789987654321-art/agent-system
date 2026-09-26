@@ -12,7 +12,6 @@
 .portrait-mouth-open { opacity:0; transform-box:fill-box; transform-origin:center; }
 .avatar-enabled .portrait-eyes { animation:portrait-blink 6.4s ease-in-out infinite; }
 .avatar-enabled .portrait-rig { animation:portrait-breathe 6.2s ease-in-out infinite; }
-.avatar-enabled.speaking .portrait-smile { opacity:0; }
 .avatar-enabled.speaking .portrait-mouth-open { opacity:1; animation:portrait-talk 1.15s ease-in-out infinite; }
 .avatar-enabled.listening .portrait-rig { animation-play-state:paused; }
 #page-overview .digital-human-card .avatar-caption { background:#e3eff5f2; border-color:#9bbaca; box-shadow:0 3px 12px #47638114; z-index:5; }
@@ -33,7 +32,7 @@ body.dark-mode .tech-panel-detail { color:#8ab0c3; opacity:.48; }
 @keyframes tech-speech-signal { 0%,45%,100% { opacity:.5; } 20%,75% { opacity:1; } }
 @keyframes portrait-blink { 0%,43%,47%,100% { transform:scaleY(1); } 45% { transform:scaleY(.08); } }
 @keyframes portrait-breathe { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-.65px); } }
-@keyframes portrait-talk { 0%,18%,45%,73%,100% { transform:scale(.92,.15); } 8%,57% { transform:scale(1,.7); } 30% { transform:scale(.88,.5); } 86% { transform:scale(.95,.85); } }
+@keyframes portrait-talk { 0%,18%,45%,73%,100% { opacity:.18; } 8%,57% { opacity:.8; } 30% { opacity:.45; } 86% { opacity:1; } }
 @media (prefers-reduced-motion:reduce) { #avatar-2d * { animation:none!important; transition:none!important; } #avatar-2d .portrait-person, #avatar-2d .portrait-depth-back { transform:none!important; } }
 
 /* Timer has its own theme tokens, including idle, paused and near-completion states. */
