@@ -9,6 +9,61 @@ const { createTaskAlertStore } = require('../services/task-alerts');
 const alert = id => ({ id, name: '倒垃圾' + id, text: '提醒时间到了，该倒垃圾了。', reminder: true });
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
+test('reconnection auto-plays tasks observed on this page but keeps older history silent', async () => {
+  const spoken = [], acknowledged = [];
+  const controller = createController({ speak: async text => { spoken.push(text); return true; }, acknowledge: async id => acknowledged.push(id) });
+  controller.observeTasks({ activeTask: alert('active'), pendingTasks: [alert('queued')] });
+  // The reconnect snapshot has already removed the tasks that expired offline.
+  controller.observeTasks({ activeTask: null, pendingTasks: [] });
+  controller.restore([alert('old'), alert('active'), alert('queued')]);
+  await flush();
+  assert.equal(spoken.length, 2);
+  assert.deepEqual(acknowledged, ['active', 'queued']);
+  assert.deepEqual(controller.list().map(item => item.id), ['old']);
+  controller.restore([alert('old'), alert('active'), alert('queued')]);
+  await flush();
+  assert.equal(spoken.length, 2);
+});
+
+test('live reminders wait for speech readiness and resume without losing the alert', async () => {
+  let ready = false;
+  const spoken = [];
+  const controller = createController({ canSpeak: () => ready, speak: async text => { spoken.push(text); return true; }, acknowledge: async () => {} });
+  controller.receive(alert('one'));
+  await flush();
+  assert.equal(spoken.length, 0);
+  assert.equal(controller.list().length, 1);
+  ready = true;
+  controller.resume();
+  await flush();
+  assert.equal(spoken.length, 1);
+  assert.equal(controller.list().length, 0);
+});
+
+test('failed live speech exposes its reason and retries on interaction without replaying history', async () => {
+  let blocked = true;
+  const spoken = [], acknowledged = [];
+  const controller = createController({
+    speak: async text => { spoken.push(text); if (blocked) throw new Error('浏览器未允许播放，请点击播报'); return true; },
+    acknowledge: async id => acknowledged.push(id)
+  });
+  controller.restore([alert('old')]);
+  controller.receive(alert('one'));
+  await flush();
+  assert.match(controller.list().find(item => item.id === 'one').error, /浏览器未允许播放/);
+  assert.equal(spoken.length, 1);
+  assert.equal(acknowledged.length, 0);
+  controller.resume();
+  await flush();
+  assert.equal(spoken.length, 1, 'do not loop on blocked playback');
+  blocked = false;
+  controller.retryFailed();
+  await flush();
+  assert.equal(spoken.length, 2);
+  assert.deepEqual(acknowledged, ['one']);
+  assert.deepEqual(controller.list().map(item => item.id), ['old']);
+});
+
 test('live alerts auto-play once and acknowledge only after speech completes', async () => {
   let finish;
   const spoken = [], acknowledged = [];

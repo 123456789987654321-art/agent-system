@@ -62,7 +62,16 @@ export class AvatarSpeech {
             next();
           };
           utterance.onerror = event => {
-            if (current()) finish(new Error('语音播报失败：' + (event.error || 'unknown')));
+            const reasons = {
+              'not-allowed': '浏览器未允许自动播放，请点击播报重试',
+              'audio-busy': '音频设备正忙，请稍后点击播报重试',
+              'audio-hardware': '音频设备不可用，请检查声音输出后重试',
+              'voice-unavailable': '中文语音不可用，请检查系统语音后重试',
+              'language-unavailable': '中文语音不可用，请检查系统语音后重试',
+              'interrupted': '播放被其他语音打断，请点击播报重试',
+              'canceled': '播放已取消，请点击播报重试'
+            };
+            if (current()) finish(new Error((reasons[event.error] || '语音播报失败，请点击播报重试') + '（' + (event.error || 'unknown') + '）'));
           };
           // Browsers may neither start nor reject a blocked utterance.
           pending.timer = setTimeout(() => finish(new Error('语音播报超时。')), this.timeout);

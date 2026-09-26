@@ -258,6 +258,7 @@ function updateAgentConnectionState() {
   window.DailyReport?.updateSpeechButtons();
   if (offline) stopAgentActivity();
   window.HomeAvatar?.syncAccess();
+  window.dispatchEvent(new Event('agent-speech-ready'));
   if (agentOfflineState === offline) return;
   agentOfflineState = offline;
 
@@ -432,7 +433,8 @@ function parseRelativeDelay(text) {
 // 实时到点自动播报；重新进入页面时恢复的未读提醒只等待用户选择。
 let pendingTaskAlerts = [];
 const taskAlerts = TaskAlerts.createController({
-  speak: text => agentSpeak(text, { continueWhenHidden: true }),
+  canSpeak: () => !isAgentOffline() && !!window.HomeAvatar?.canSpeak && !speechInProgress,
+  speak: text => agentSpeak(text, { continueWhenHidden: true, throwOnError: true }),
   acknowledge: async id => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
@@ -445,6 +447,10 @@ const taskAlerts = TaskAlerts.createController({
   },
   onChange: alerts => { pendingTaskAlerts = alerts; renderTaskAlert(); }
 });
+window.addEventListener('agent-speech-ready', () => { renderTaskAlert(); void taskAlerts.resume(); });
+document.addEventListener('click', event => {
+  if (event.isTrusted && !event.target?.closest?.('#taskAlertSpeak, #taskAlertDismiss')) void taskAlerts.retryFailed();
+});
 
 function handleTaskDone(task) {
   taskAlerts.receive(task);
@@ -454,7 +460,7 @@ function renderTaskAlert() {
   const bar = document.getElementById('taskAlertBar');
   const textEl = document.getElementById('taskAlertText');
   if (!bar) return;
-  const alert = pendingTaskAlerts[0];
+  const alert = pendingTaskAlerts.find(item => item.speaking) || pendingTaskAlerts[0];
   if (!alert) {
     bar.hidden = true;
     return;
@@ -462,7 +468,12 @@ function renderTaskAlert() {
   bar.hidden = false;
   const extra = pendingTaskAlerts.length > 1 ? '（还有 ' + (pendingTaskAlerts.length - 1) + ' 条）' : '';
   const label = alert.speaking ? '正在播报：' : alert.replayed ? '到期未处理：' : '到点提醒：';
-  if (textEl) textEl.innerText = label + alert.name + extra + (alert.error ? '（' + alert.error + '）' : '');
+  const status = alert.error || (!alert.replayed && !alert.speaking
+    ? isAgentOffline() ? '请先在设置中保存 API Key'
+      : !window.HomeAvatar?.canSpeak ? '等待语音就绪，可点击播报重试'
+        : speechInProgress ? '等待当前语音结束后播报' : ''
+    : '');
+  if (textEl) textEl.innerText = label + alert.name + extra + (status ? '（' + status + '）' : '');
   const speakButton = document.getElementById('taskAlertSpeak');
   const dismissButton = document.getElementById('taskAlertDismiss');
   if (speakButton) speakButton.disabled = alert.speaking || isAgentOffline();
@@ -895,6 +906,7 @@ async function agentSpeak(text, options = {}) {
   }
   catch (error) {
     if (version === agentSpeechVersion && titleEl) titleEl.innerText = '播报未完成 · 文字回复已保留';
+    if (options.throwOnError) throw error;
     return false;
   }
   finally {
@@ -902,6 +914,7 @@ async function agentSpeak(text, options = {}) {
       speechInProgress = false;
       setTimeout(flushDeviceDemoQueue, 240);
       hideGlobalVoiceStatus();
+      void taskAlerts.resume();
     }
   }
 }
@@ -1072,7 +1085,7 @@ async function fetchWeather() {
 function handleSocketMessage(event) {
   const msg = JSON.parse(event.data);
   if (msg.type === 'AGENT_LOG') console.log("AI状态更新: ", msg.log); 
-  else if (msg.type === 'STATE_UPDATE') renderUI(msg.data);
+  else if (msg.type === 'STATE_UPDATE') { taskAlerts.observeTasks(msg.data); renderUI(msg.data); }
   else if (msg.type === 'TASK_DONE') handleTaskDone(msg.data);
   else if (msg.type === 'TASK_ALERTS') taskAlerts.restore(msg.data);
   else if (msg.type === 'TASK_ALERT_ACK') taskAlerts.remove(msg.data.id);

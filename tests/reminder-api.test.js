@@ -7,6 +7,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const WebSocket = require('ws');
+const { createController } = require('../public/task-alerts');
 
 async function fixture(t) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'reminder-api-'));
@@ -59,6 +60,30 @@ async function reconnect(t, f) {
   await f.waitFor(() => messages.some(message => message.type === 'TASK_ALERTS'));
   return { socket, messages, backlog: messages.find(message => message.type === 'TASK_ALERTS').data };
 }
+
+test('a page waiting for a task auto-plays its missed expiry after a real socket reconnect', { timeout: 20000 }, async t => {
+  const f = await fixture(t);
+  const spoken = [];
+  const controller = createController({
+    speak: async text => { spoken.push(text); return true; },
+    acknowledge: id => f.post('/api/task_alerts/ack', { id })
+  });
+  const { task } = await f.post('/api/task', { name: '倒垃圾', seconds: 1, reminder: true });
+  await f.waitFor(() => f.state().activeTask?.id === task.id);
+  controller.observeTasks(f.state());
+  const closed = once(f.socket, 'close');
+  f.socket.close();
+  await closed;
+  const deadline = Date.now() + 5000;
+  while ((await f.report()).counts.remindersDue === 0 && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 50));
+  assert.equal((await f.report()).counts.remindersDue, 1);
+  const restored = await reconnect(t, f);
+  controller.observeTasks(restored.messages.find(message => message.type === 'STATE_UPDATE').data);
+  controller.restore(restored.backlog);
+  await f.waitFor(() => spoken.length === 1 && controller.list().length === 0);
+  assert.match(spoken[0], /该倒垃圾了/);
+  assert.equal((await reconnect(t, f)).backlog.length, 0);
+});
 
 test('expiry while the page is closed is restored as a silent backlog and can be acknowledged', { timeout: 20000 }, async t => {
   const f = await fixture(t);

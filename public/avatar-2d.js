@@ -1,4 +1,4 @@
-import { AvatarSpeech } from './avatar-speech.mjs?v=reminder-playback-20260927-1';
+import { AvatarSpeech } from './avatar-speech.mjs?v=reminder-recovery-20260927-1';
 
 const stage = document.getElementById('avatarStage');
 const host = document.getElementById('avatar-2d');
@@ -49,6 +49,7 @@ window.HomeAvatar = {
   stopSpeech: () => speech.stop(),
   syncAccess,
 };
+window.dispatchEvent(new Event('agent-speech-ready'));
 let resizeFrame = 0;
 const observer = new ResizeObserver(() => {
   cancelAnimationFrame(resizeFrame);
