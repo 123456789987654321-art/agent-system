@@ -1,0 +1,142 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { spawn } = require('node:child_process');
+const { once } = require('node:events');
+const net = require('node:net');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const WebSocket = require('ws');
+
+async function fixture(t) {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'reminder-api-'));
+  const listener = net.createServer();
+  await new Promise(resolve => listener.listen(0, '127.0.0.1', resolve));
+  const port = listener.address().port;
+  await new Promise(resolve => listener.close(resolve));
+  const child = spawn(process.execPath, ['server.js'], {
+    cwd: path.resolve(__dirname, '..'), windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env, PORT: String(port), REPORT_DATA_FILE: path.join(directory, 'events.json') }
+  });
+  t.after(async () => {
+    if (child.exitCode === null) { const exited = once(child, 'exit'); child.kill(); await exited; }
+    fs.rmSync(directory, { recursive: true, force: true });
+  });
+  await new Promise((resolve, reject) => {
+    child.stdout.on('data', data => { if (String(data).includes('Agent Server running')) resolve(); });
+    child.once('error', reject);
+    child.once('exit', code => reject(Error('Server exited: ' + code)));
+  });
+  const url = 'http://127.0.0.1:' + port;
+  const messages = [];
+  const socket = new WebSocket('ws://127.0.0.1:' + port);
+  socket.on('message', data => messages.push(JSON.parse(String(data))));
+  t.after(() => socket.terminate());
+  await once(socket, 'open');
+  const post = async (route, body) => {
+    const response = await fetch(url + route, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    assert.equal(response.status, 200);
+    return response.json();
+  };
+  const interact = text => post('/api/interact', { text, llmConfig: { apiKey: 'test-local-parser-only' } });
+  const report = async () => (await fetch(url + '/api/report/today')).json();
+  const waitFor = async predicate => {
+    const deadline = Date.now() + 5000;
+    while (!predicate() && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 25));
+    assert.ok(predicate(), 'Expected WebSocket event/state within 5 seconds');
+  };
+  const state = () => messages.filter(message => message.type === 'STATE_UPDATE').at(-1)?.data;
+  await waitFor(() => Boolean(state()));
+  return { post, interact, report, messages, state, waitFor };
+}
+
+test('voice-style Chinese reminder is 300 seconds and emits reminder text at expiry', { timeout: 20000 }, async t => {
+  const f = await fixture(t);
+  const start = Date.now();
+  const response = await f.interact('五分钟后提醒倒垃圾');
+  assert.match(response.reply, /五分钟后提醒你倒垃圾/);
+  await f.waitFor(() => Boolean(f.state().activeTask));
+  const task = f.state().activeTask;
+  assert.equal(task.name, '倒垃圾');
+  assert.equal(task.seconds, 300);
+  assert.equal(task.minutes, 5);
+  assert.equal(task.totalSeconds, 300);
+  assert.equal(task.reminder, true);
+  assert.ok(task.dueAt >= start + 300000 && task.dueAt <= Date.now() + 300000);
+  await f.post('/api/task_control', { action: 'advance', seconds: 300 });
+  await f.waitFor(() => f.messages.some(message => message.type === 'TASK_DONE'));
+  const done = f.messages.find(message => message.type === 'TASK_DONE').data;
+  assert.equal(done.reminder, true);
+  assert.match(done.text, /提醒时间到了，该倒垃圾了/);
+  assert.doesNotMatch(done.text, /完成/);
+  assert.equal((await f.report()).counts.tasksFinished, 0);
+  assert.equal((await f.report()).counts.remindersDue, 1);
+});
+
+test('compound instruction switches both devices immediately and creates exactly one reminder', { timeout: 20000 }, async t => {
+  const f = await fixture(t);
+  await f.interact('打开风扇，打开空调，然后5分钟以后提醒我倒垃圾');
+  await f.waitFor(() => f.state().devices.ac === '开启');
+  assert.equal(f.state().devices.fan, '开启');
+  assert.equal(f.state().activeTask.name, '倒垃圾');
+  assert.equal(f.state().activeTask.totalSeconds, 300);
+  assert.equal(f.state().activeTask.reminder, true);
+  assert.equal(f.state().pendingTasks.length, 0);
+  const report = await f.report();
+  assert.equal(report.counts.deviceChanges, 2);
+  assert.equal(report.events.filter(event => event.type === 'task_created').length, 1);
+});
+
+test('queued reminder expires independently of a paused chore and does not finish that chore', { timeout: 20000 }, async t => {
+  const f = await fixture(t);
+  await f.post('/api/task', { name: '洗衣服', seconds: 600 });
+  await f.post('/api/task_control', { action: 'pause' });
+  await f.interact('一秒后提醒我倒垃圾');
+  await f.waitFor(() => f.messages.some(message => message.type === 'TASK_DONE'));
+  await f.waitFor(() => f.state().pendingTasks.length === 0);
+  const done = f.messages.find(message => message.type === 'TASK_DONE').data;
+  assert.equal(done.name, '倒垃圾');
+  assert.equal(done.reminder, true);
+  assert.equal(f.state().activeTask.name, '洗衣服');
+  assert.equal(f.state().activeTask.paused, true);
+  assert.equal((await f.report()).counts.tasksFinished, 0);
+});
+
+test('absolute reminder deadline is the clock time, with no extra chore duration', { timeout: 20000 }, async t => {
+  const f = await fixture(t);
+  const target = new Date(Date.now() + 120000);
+  target.setSeconds(0, 0);
+  const scheduledTime = `${String(target.getHours()).padStart(2, '0')}:${String(target.getMinutes()).padStart(2, '0')}`;
+  const { task } = await f.post('/api/task', { name: '倒垃圾', reminder: true, minutes: 10, execute: 'scheduled', scheduledTime });
+  assert.equal(task.dueAt, target.getTime());
+  assert.ok(task.totalSeconds <= 120);
+});
+
+test('pause is idempotent and resume, extend and advance maintain the reminder deadline', { timeout: 20000 }, async t => {
+  const f = await fixture(t);
+  await f.interact('五分钟后提醒我倒垃圾');
+  const paused = (await f.post('/api/task_control', { action: 'pause' })).task;
+  await new Promise(resolve => setTimeout(resolve, 1100));
+  const pausedAgain = (await f.post('/api/task_control', { action: 'pause' })).task;
+  assert.equal(pausedAgain.remaining, paused.remaining);
+  const resumed = (await f.post('/api/task_control', { action: 'resume' })).task;
+  assert.ok(resumed.dueAt > paused.dueAt);
+  const extended = (await f.post('/api/task_control', { action: 'extend', seconds: 60 })).task;
+  assert.equal(extended.dueAt, resumed.dueAt + 60000);
+  const advanced = (await f.post('/api/task_control', { action: 'advance', seconds: 60 })).task;
+  assert.equal(advanced.dueAt, resumed.dueAt);
+});
+
+test('reminding about devices never operates them, and invalid compound commands have no side effects', { timeout: 20000 }, async t => {
+  const f = await fixture(t);
+  await f.interact('五分钟后提醒我打开风扇和空调');
+  await f.waitFor(() => Boolean(f.state().activeTask));
+  assert.equal(f.state().devices.fan, '关闭');
+  assert.equal(f.state().devices.ac, '关闭');
+  assert.equal(f.state().activeTask.name, '打开风扇和空调');
+  const result = await f.interact('打开不存在的风扇，然后五分钟后提醒我倒垃圾');
+  assert.match(result.reply, /没有检测到/);
+  const report = await f.report();
+  assert.equal(report.counts.deviceChanges, 0);
+  assert.equal(report.events.filter(event => event.type === 'task_created').length, 1);
+});

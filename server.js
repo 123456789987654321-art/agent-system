@@ -4,6 +4,7 @@ const http = require('http');
 const path = require('path');
 const WebSocket = require('ws');
 const axios = require('axios');
+const { splitCommandClauses, parseTaskCommand } = require('./public/task-parser');
 const { createAddressLookup } = require('./services/location-address');
 const lookupAddress = createAddressLookup();
 const { createDailyReportStore } = require('./services/daily-report');
@@ -61,9 +62,17 @@ setInterval(() => {
   if (homeState.activeTask) {
     const runningTask = homeState.activeTask;
     if (!runningTask.paused) {
-      runningTask.remaining--;
+      runningTask.remaining = runningTask.reminder
+        ? Math.max(0, Math.ceil((runningTask.dueAt - Date.now()) / 1000))
+        : runningTask.remaining - 1;
       if (runningTask.remaining <= 0) finishTask(runningTask);
     }
+  }
+  // Reminders count from the request, independently of the chore queue.
+  for (const task of [...homeState.pendingTasks]) {
+    if (!task.reminder) continue;
+    task.remaining = Math.max(0, Math.ceil((task.dueAt - Date.now()) / 1000));
+    if (task.remaining <= 0) finishTask(task);
   }
   activateReadyTask();
   broadcastState();
@@ -100,9 +109,10 @@ function taskReportDetails(task) {
 function finishTask(task) {
   if (!task) return;
   recordReportEvent(task.reminder ? 'reminder_due' : 'task_finished', taskReportDetails(task));
-  const text = task.reminder ? '现在要去' + task.name + '了' : task.name + '任务已完成';
-  homeState.activeTask = null;
-  broadcastLog('[任务完成]：' + task.name + ' 结束');
+  const text = task.reminder ? '提醒时间到了，该' + task.name + '了。' : task.name + '任务已完成';
+  if (homeState.activeTask?.id === task.id) homeState.activeTask = null;
+  homeState.pendingTasks = homeState.pendingTasks.filter(item => item.id !== task.id);
+  broadcastLog(task.reminder ? '[提醒到点]：' + task.name : '[任务完成]：' + task.name + ' 结束');
   broadcastTaskDone(task, text);
   broadcastState();
 }
@@ -266,7 +276,7 @@ function formatClock(date) {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
-function parseScheduledAt(scheduledTime) {
+function parseScheduledAt(scheduledTime, dayOffset = 0) {
   const now = new Date();
   const value = String(scheduledTime || '').trim();
 
@@ -277,7 +287,7 @@ function parseScheduledAt(scheduledTime) {
   if (match) {
     const target = new Date(now);
     target.setHours(Number(match[1]), Number(match[2]), 0, 0);
-    if (target.getTime() <= now.getTime()) target.setDate(target.getDate() + 1);
+    if (dayOffset === 1 || target.getTime() <= now.getTime()) target.setDate(target.getDate() + 1);
     return target.getTime();
   }
 
@@ -285,25 +295,33 @@ function parseScheduledAt(scheduledTime) {
 }
 
 function makeTask(action) {
-  const minutes = Math.max(1, Number(action.minutes) || 10);
+  const now = Date.now();
   const secondsInput = Number(action.seconds);
-  const totalSeconds = Number.isFinite(secondsInput) && secondsInput > 0 ? Math.max(1, Math.round(secondsInput)) : minutes * 60;
+  let totalSeconds = Number.isFinite(secondsInput) && secondsInput > 0
+    ? Math.max(1, Math.round(secondsInput)) : Math.max(1, Number(action.minutes) || 10) * 60;
   const scheduledTime = String(action.scheduledTime || '').trim();
-  const executeMode = action.execute === 'scheduled' || scheduledTime ? 'scheduled' : 'now';
-  const scheduledAt = executeMode === 'scheduled'
-    ? parseScheduledAt(scheduledTime)
-    : Date.now();
+  let executeMode = action.execute === 'scheduled' || scheduledTime ? 'scheduled' : 'now';
+  let scheduledAt = executeMode === 'scheduled' ? parseScheduledAt(scheduledTime, action.dayOffset) : now;
+  let dueAt;
+  if (action.reminder === true) {
+    dueAt = executeMode === 'scheduled' ? scheduledAt : now + totalSeconds * 1000;
+    totalSeconds = Math.max(1, Math.ceil((dueAt - now) / 1000));
+    // An absolute reminder fires at the requested clock time, without another timer afterward.
+    executeMode = 'now';
+    scheduledAt = now;
+  }
 
   return {
     id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
     name: String(action.name || '日常任务'),
     reminder: action.reminder === true,
-    minutes,
+    minutes: totalSeconds / 60,
     seconds: totalSeconds,
     totalSeconds,
     remaining: totalSeconds,
     executeMode,
     scheduledAt,
+    dueAt,
     scheduledTime: executeMode === 'scheduled'
       ? formatClock(new Date(scheduledAt))
       : '立即'
@@ -312,23 +330,24 @@ function makeTask(action) {
 
 function activateTask(task) {
   const startedAt = new Date();
+  const remaining = task.reminder ? Math.max(0, Math.ceil((task.dueAt - startedAt.getTime()) / 1000)) : task.totalSeconds;
   homeState.activeTask = {
     ...task,
     startedAt: startedAt.getTime(),
     startTime: formatClock(startedAt),
-    endTime: formatClock(new Date(startedAt.getTime() + task.totalSeconds * 1000)),
-    remaining: task.totalSeconds
+    endTime: formatClock(new Date(startedAt.getTime() + remaining * 1000)),
+    remaining
   };
-  recordReportEvent('task_started', taskReportDetails(task));
+  if (!task.startedAt) recordReportEvent('task_started', taskReportDetails(task));
   broadcastLog(`[任务开始]：${task.name}`);
 }
 
 function activateReadyTask() {
   if (homeState.activeTask || !homeState.pendingTasks.length) return;
   homeState.pendingTasks.sort((a, b) => a.scheduledAt - b.scheduledAt);
-  const nextTask = homeState.pendingTasks[0];
-  if (nextTask.scheduledAt <= Date.now()) {
-    homeState.pendingTasks.shift();
+  const nextIndex = homeState.pendingTasks.findIndex(task => task.reminder || task.scheduledAt <= Date.now());
+  if (nextIndex >= 0) {
+    const [nextTask] = homeState.pendingTasks.splice(nextIndex, 1);
     activateTask(nextTask);
   }
 }
@@ -343,10 +362,14 @@ function scheduleTask(action) {
   }
 
   if (task.executeMode === 'now' && homeState.activeTask) {
-    const queuedAt = Date.now() + homeState.activeTask.remaining * 1000;
+    const queuedAt = task.reminder ? task.dueAt : Date.now() + homeState.activeTask.remaining * 1000;
     task.executeMode = 'scheduled';
     task.scheduledAt = queuedAt;
     task.scheduledTime = formatClock(new Date(queuedAt));
+    if (task.reminder) {
+      task.startedAt = Date.now();
+      recordReportEvent('task_started', taskReportDetails(task));
+    }
   }
 
   homeState.pendingTasks.push(task);
@@ -354,10 +377,49 @@ function scheduleTask(action) {
   return task;
 }
 
+async function handleTaskCommand(userInput) {
+  const clauses = splitCommandClauses(userInput);
+  const plan = [];
+  let hasTask = false;
+  for (const clause of clauses) {
+    const task = parseTaskCommand(clause);
+    if (task) {
+      hasTask = true;
+      plan.push({ task });
+    } else if (plan.at(-1)?.deviceText) {
+      plan[plan.length - 1].deviceText += '，' + clause;
+    } else {
+      plan.push({ deviceText: clause });
+    }
+  }
+  if (!hasTask) return null;
+  // Validate every clause before applying any side effects.
+  for (const item of plan) {
+    if (item.task?.error) return { reply: item.task.error };
+    if (item.deviceText) {
+      const parsed = parseDeviceCommandText(item.deviceText);
+      if (!parsed.valid) return { reply: parsed.attempted ? '没有检测到存在该名称的家电' : '这条指令中有未能识别的操作，请分别说明设备操作和提醒时间。' };
+      item.commands = parsed.commands;
+    }
+  }
+  // Establish reminder deadlines before waiting for device animations/sequence delays.
+  for (const item of plan) if (item.task) scheduleTask(item.task);
+  broadcastState();
+  const replies = [];
+  for (const item of plan) {
+    if (item.commands) replies.push((await enqueueDeviceCommands(item.commands)).reply);
+    else replies.push(item.task.speak);
+  }
+  return { reply: replies.join('；') };
+}
+
 // 核心：处理 Agent 推理与动态 LLM 调用
 async function processAgentThought(userInput, llmConfig) {
   const apiKey = typeof llmConfig?.apiKey === 'string' ? llmConfig.apiKey.trim() : '';
   if (!apiKey) return '请先前往设置页面，填入您的 AI 密钥。';
+
+  const taskReply = await handleTaskCommand(userInput);
+  if (taskReply) return taskReply.reply;
 
   const explicitDeviceReply = await handleExplicitDeviceCommand(userInput);
   if (explicitDeviceReply) return explicitDeviceReply.reply;
@@ -374,13 +436,15 @@ async function processAgentThought(userInput, llmConfig) {
   "reply": "对用户的语音回复",
   "actions": [
     {"type": "control", "device": "door_main|door_bedroom|door_toilet|door_balcony|light_living|light_bedroom|light_kitchen|light_toilet|light_balcony|window_living|window_bedroom|window_kitchen|ac|water_heater|kettle|washer|tv|fan", "state": "开启|关闭"},
-    {"type": "set_task", "name": "倒垃圾", "minutes": 10, "execute": "now", "scheduledTime": ""},
+    {"type": "set_task", "name": "倒垃圾", "seconds": 300, "reminder": true, "execute": "now", "scheduledTime": ""},
     {"type": "set_task", "name": "晒衣服", "minutes": 30, "execute": "scheduled", "scheduledTime": "17:30"}
   ]
 }
 倒垃圾、晒衣服、收衣服、浇花、拖地、洗碗等不属于家电控制，必须使用 set_task。
 如果用户说“现在、马上、立刻”或没有指定时间，execute 使用 now。
-如果用户指定时间，execute 使用 scheduled，scheduledTime 使用 HH:mm。`;
+相对提醒（如五分钟后提醒倒垃圾）使用 seconds=300、reminder=true、execute=now，不得使用默认家务时长。
+提醒只是通知用户行动，不能声称家务已经完成。各分句的时间仅作用于该分句。
+如果用户指定具体钟点，execute 使用 scheduled，scheduledTime 使用 HH:mm；提醒必须设置 reminder=true。`;
 
   try {
     const tempMap = { 'low': 0.0, 'medium': 0.5, 'high': 1.0 };
@@ -460,7 +524,7 @@ app.post('/api/interact', async (req, res) => {
 });
 
 app.post('/api/task', (req, res) => {
-  const { name, minutes, seconds, execute, scheduledTime, reminder } = req.body;
+  const { name, minutes, seconds, execute, scheduledTime, reminder, dayOffset } = req.body;
   if (!name) return res.status(400).json({ error: '任务名称不能为空' });
 
   const task = scheduleTask({
@@ -470,7 +534,8 @@ app.post('/api/task', (req, res) => {
     seconds,
     execute,
     scheduledTime,
-    reminder
+    reminder,
+    dayOffset
   });
   broadcastLog(`[任务安排]：${task.name}，${task.executeMode === 'now' ? '立即执行' : `${task.scheduledTime} 执行`}`);
   broadcastState();
@@ -512,9 +577,10 @@ app.post('/api/task_control', (req, res) => {
   let message = '';
 
   if (action === 'next') {
-    if (!homeState.pendingTasks.length) return res.status(400).json({ error: '没有等待中的任务' });
     homeState.pendingTasks.sort((a, b) => a.scheduledAt - b.scheduledAt);
-    const nextTask = homeState.pendingTasks.shift();
+    const nextIndex = homeState.pendingTasks.findIndex(item => !item.reminder);
+    if (nextIndex < 0) return res.status(400).json({ error: '没有等待中的任务；提醒会独立计时' });
+    const [nextTask] = homeState.pendingTasks.splice(nextIndex, 1);
     if (task) {
       nextTask.executeMode = 'scheduled';
       nextTask.scheduledAt = Date.now() + task.remaining * 1000 + 1000;
@@ -534,9 +600,14 @@ app.post('/api/task_control', (req, res) => {
   if (!task) return res.status(400).json({ error: '当前没有正在执行的任务' });
 
   if (action === 'pause') {
+    if (task.reminder && !task.paused) task.remaining = Math.max(0, Math.ceil((task.dueAt - Date.now()) / 1000));
     task.paused = true;
     message = '已暂停' + task.name + '的倒计时';
   } else if (action === 'resume') {
+    if (task.reminder && task.paused) {
+      task.dueAt = Date.now() + task.remaining * 1000;
+      task.endTime = formatClock(new Date(task.dueAt));
+    }
     task.paused = false;
     message = '已继续' + task.name + '的倒计时';
   } else if (action === 'cancel') {
@@ -546,12 +617,15 @@ app.post('/api/task_control', (req, res) => {
     if (!amountSeconds) return res.status(400).json({ error: '请说明要延长多长时间' });
     task.totalSeconds += amountSeconds;
     task.remaining += amountSeconds;
+    if (task.reminder) task.dueAt += amountSeconds * 1000;
     task.endTime = formatClock(new Date(Date.now() + task.remaining * 1000));
     message = '已把' + task.name + '延长' + formatDuration(amountSeconds);
   } else if (action === 'advance') {
     if (!amountSeconds) return res.status(400).json({ error: '请说明要提前多长时间' });
     task.totalSeconds = Math.max(1, task.totalSeconds - amountSeconds);
     task.remaining = task.remaining - amountSeconds;
+    if (task.reminder) task.dueAt -= amountSeconds * 1000;
+    task.endTime = formatClock(new Date(Date.now() + Math.max(0, task.remaining) * 1000));
     message = '已把' + task.name + '提前' + formatDuration(amountSeconds);
     if (task.remaining <= 0) finishTask(task);
   } else {

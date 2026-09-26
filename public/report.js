@@ -53,9 +53,14 @@ window.DailyReport = (() => {
       : '';
     let taskText = finished.length ? `已结束计时的任务包括：${finishedNames}。` : '今天暂时没有任务计时结束。';
     if (activeTask) taskText += `当前${activeTask.paused ? '已暂停' : '正在进行'}${activeTask.reminder ? '提醒' : '任务'}「${activeTask.name}」，剩余约 ${duration(activeTask.remaining)}。`;
-    if (pendingTasks.length) {
-      const next = pendingTasks[0];
-      taskText += `另有 ${pendingTasks.length} 项安排等待执行，下一项为「${next.name}」，计划时间 ${dateTime(next.scheduledAt)}；如有任务正在执行，将按队列顺序开始。`;
+    const queuedTasks = pendingTasks.filter(task => !task.reminder);
+    const reminders = pendingTasks.filter(task => task.reminder);
+    if (queuedTasks.length) {
+      const next = queuedTasks[0];
+      taskText += `另有 ${queuedTasks.length} 项安排等待执行，下一项为「${next.name}」，计划时间 ${dateTime(next.scheduledAt)}；如有任务正在执行，将按队列顺序开始。`;
+    }
+    if (reminders.length) {
+      taskText += `另有 ${reminders.length} 条提醒正在独立计时，不受任务队列影响，最近一条为「${reminders[0].name}」，提醒时间 ${dateTime(reminders[0].scheduledAt)}。`;
     }
     const deviceText = counts.deviceChanges
       ? `今天共记录 ${counts.deviceChanges} 次设备状态变更。目前系统中有 ${data.devicesOn} 个设备处于开启状态。`
