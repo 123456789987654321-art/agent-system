@@ -36,6 +36,12 @@ is removed before export. The body coverage mask is applied before compression.
 Do not replace the torso's weight source with only the cut-away body, or fit the
 entire sleeve from nearby torso vertices.
 
+The build then applies `scripts/avatar-proportions.cjs` to the complete clothed
+character: narrower shoulders, slimmer sleeves and reduced upper-torso depth,
+with the head and overall height preserved. Joint anchors and inverse bind
+matrices are updated together with the meshes and expression deltas. Do not
+scale only the jacket or apply a global runtime width scale.
+
 After changing the model, inspect front and both oblique views with the runtime
 pose, inspect desktop/mobile light/dark pages, render a new transparent fallback
 via `HomeAvatar.capture()`, and update the asset versions in `avatar.js` and

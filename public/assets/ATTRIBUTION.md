@@ -18,7 +18,8 @@ flats; fit the shoulders, full sleeves and collar with the authored body
 correspondences, smoothly blend the fit into the tailored torso, smooth
 transferred skeleton weights across the shoulders, preserve the original outfit
 as a weight source for the cut-away torso (not as a rendered mesh), and apply
-a relaxed arm pose with forward elbow bends; retain seven facial expression channels, remove unused data, resize
+a relaxed arm pose with forward elbow bends; refine shoulder width, sleeve
+volume and torso depth together with joint anchors and inverse bind matrices; retain seven facial expression channels, remove unused data, resize
 textures to at most 2048 pixels, convert textures to WebP, and compress geometry
 with Meshoptimizer. The static fallback is rendered from this same model.
 No Youyan models, likenesses, images, or services are included.

@@ -4,6 +4,7 @@ const {ALL_EXTENSIONS}=require('../output/avatar-tools/node_modules/@gltf-transf
 const {prune,dedup,textureCompress,meshopt}=require('../output/avatar-tools/node_modules/@gltf-transform/functions');
 const THREE=require('../output/avatar-tools/node_modules/three');
 const sharp=require('../output/avatar-tools/node_modules/sharp');
+const {refineProportions}=require('./avatar-proportions.cjs');
 // Rebuild from the locally retained CC0 source assets; see public/assets/BUILD.md.
 process.chdir(require('node:path').resolve(__dirname, '..'));
 const output=process.argv[2] || 'public/assets/home-assistant.glb';
@@ -211,6 +212,7 @@ function parseClothes(file){
   mesh.setExtras({...mesh.getExtras(),targetNames:selected.map(i=>names[i])}).setWeights(selected.map(()=>0));
   for(const node of doc.getRoot().listNodes())if(node.getMesh()===mesh)node.setWeights(selected.map(()=>0));
  }
+ refineProportions(doc,THREE);
  await doc.transform(prune(),dedup(),textureCompress({encoder:sharp,targetFormat:'webp',resize:[2048,2048],quality:90}),meshopt({encoder:MeshoptEncoder,level:'medium'}));
  await io.write(output,doc);
  console.log('Saved',fs.statSync(output).size,'bytes; removed covered triangles', (oldIndices.length-kept.length)/3);

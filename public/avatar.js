@@ -109,7 +109,7 @@ async function loadModel() {
   try {
     if (!renderer) createRenderer();
     const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-    const gltf = await loader.loadAsync('./assets/home-assistant.glb?v=arms-fit-20260926', event => {
+    const gltf = await loader.loadAsync('./assets/home-assistant.glb?v=slender-20260926-1', event => {
       if(event.total) status.textContent = '正在加载三维形象 ' + Math.round(event.loaded/event.total*100) + '%';
     });
     model = gltf.scene;
