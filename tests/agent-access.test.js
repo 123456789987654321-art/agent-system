@@ -26,7 +26,4 @@ test('missing API key cannot trigger agent shortcuts; manual controls still work
   assert.equal((await report()).counts.deviceChanges,1);
   assert.equal((await post('/api/task',{name:'手动测试任务',seconds:60})).status,200);
   assert.equal((await post('/api/task_control',{action:'pause'})).status,200);
-  const guarded=await fetch(url+'/api/network/wifi',{headers:{Origin:'https://unrelated.example'}});
-  assert.equal(guarded.headers.get('cache-control'),'no-store');
-  assert.deepEqual(await guarded.json(),{available:false,reason:'remote_device'});
 });

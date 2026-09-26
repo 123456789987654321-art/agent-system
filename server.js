@@ -11,9 +11,6 @@ const reportStore = createDailyReportStore({
   filePath: process.env.REPORT_DATA_FILE || path.join(__dirname, '.data', 'report-events.json')
 });
 
-const { createNetworkService, isLocalNetworkRequest } = require('./services/network-status');
-const readNetworkStatus = createNetworkService();
-
 const app = express();
 app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders(res, filePath) {
@@ -595,13 +592,6 @@ app.get('/api/report/today', (req, res) => {
     if (error instanceof RangeError) return res.status(400).json({ error: '无效的时区' });
     res.status(500).json({ error: '报告暂时无法生成' });
   }
-});
-
-app.get('/api/network/wifi', async (req, res) => {
-  res.set('Cache-Control', 'no-store');
-  res.set('Vary', 'Host, Origin, Sec-Fetch-Site');
-  if (!isLocalNetworkRequest(req)) return res.json({ available: false, reason: 'remote_device' });
-  res.json(await readNetworkStatus());
 });
 
 app.get('/health', (req, res) => {

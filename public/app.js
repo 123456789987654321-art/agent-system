@@ -322,8 +322,6 @@ function switchPage(pageId, element) {
   }
   document.querySelector('.main-block').scrollTop = 0;
   window.scrollTo(0, 0);
-  if (pageId === 'network') window.NetworkPage?.open();
-  else window.NetworkPage?.leave();
   if (pageId === 'weather') fetchWeather();
   if (pageId === 'report') window.DailyReport?.open();
   else window.DailyReport?.leave();
