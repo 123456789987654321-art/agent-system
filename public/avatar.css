@@ -1,8 +1,12 @@
-/* Original vector portrait, with no external avatar account or model download. */
+/* Layered 2.5D vector portrait, with no external avatar account or model download. */
 #page-overview .digital-human-card #avatarStage { isolation:isolate; background:radial-gradient(ellipse at 48% 35%,#e8f4f5,#c2dce8 72%,#abc9dc); border:1px solid #8faec5; box-shadow:inset 0 1px 0 #ffffff80; }
 #page-overview .digital-human-card #avatarStage::after { display:none; }
 .avatar-2d-viewport { position:absolute; inset:0 0 var(--avatar-caption-space,88px); display:flex; justify-content:center; align-items:center; overflow:hidden; pointer-events:none; }
-.assistant-portrait { display:block; height:100%; width:100%; max-width:480px; overflow:hidden; }
+.assistant-portrait { display:block; height:100%; width:100%; max-width:455px; overflow:hidden; }
+.portrait-person { transform:translate(var(--portrait-x,0px),var(--portrait-y,0px)); }
+.portrait-depth-back { transform:translate(calc(var(--portrait-x,0px) * -.6),calc(var(--portrait-y,0px) * -.6)); }
+.avatar-enabled .portrait-person { transition:transform .45s ease-out; }
+.avatar-enabled .portrait-depth-back { transition:transform .6s ease-out; }
 .portrait-head { transform-box:fill-box; transform-origin:50% 90%; }
 .portrait-body { transform-box:fill-box; transform-origin:50% 100%; }
 .portrait-eyes { transform-box:fill-box; transform-origin:center; }
@@ -12,7 +16,7 @@
 .avatar-enabled .portrait-head { animation:portrait-sway 7s ease-in-out infinite; }
 .avatar-enabled.speaking .portrait-smile { opacity:0; }
 .avatar-enabled.speaking .portrait-mouth-open { opacity:1; animation:portrait-talk .23s ease-in-out infinite alternate; }
-.avatar-enabled.listening .portrait-head { animation:none; transform:rotate(-3deg); }
+.avatar-enabled.listening .portrait-head { animation:none; transform:rotate(-1.5deg); }
 #page-overview .digital-human-card .avatar-caption { background:#e3eff5f2; border-color:#9bbaca; box-shadow:0 3px 12px #47638114; z-index:5; }
 #page-overview .digital-human-card .sound-wave { bottom:var(--avatar-caption-space,88px); z-index:3; height:18px; }
 body.dark-mode #page-overview .digital-human-card #avatarStage { background:radial-gradient(ellipse at 48% 35%,#345668,#1b364d 78%); border-color:#7294af; }
@@ -20,10 +24,10 @@ body.dark-mode .portrait-halo { opacity:.16; }
 body.dark-mode #page-overview .digital-human-card .avatar-caption { background:#172f44f5; border-color:#779bb5; }
 .avatar-compact .assistant-portrait { max-width:210px; }
 @keyframes portrait-blink { 0%,43%,47%,100% { transform:scaleY(1); } 45% { transform:scaleY(.08); } }
-@keyframes portrait-breathe { 0%,100% { transform:scaleY(1); } 50% { transform:scaleY(1.009); } }
-@keyframes portrait-sway { 0%,100% { transform:rotate(-.5deg); } 50% { transform:rotate(.6deg); } }
+@keyframes portrait-breathe { 0%,100% { transform:scaleY(1); } 50% { transform:scaleY(1.004); } }
+@keyframes portrait-sway { 0%,100% { transform:rotate(-.2deg); } 50% { transform:rotate(.3deg); } }
 @keyframes portrait-talk { from { transform:scaleY(.45); } to { transform:scaleY(1); } }
-@media (prefers-reduced-motion:reduce) { #avatar-2d * { animation:none!important; transition:none!important; } }
+@media (prefers-reduced-motion:reduce) { #avatar-2d * { animation:none!important; transition:none!important; } #avatar-2d .portrait-person, #avatar-2d .portrait-depth-back { transform:none!important; } }
 
 /* Timer has its own theme tokens, including idle, paused and near-completion states. */
 #page-overview .projection-screen {

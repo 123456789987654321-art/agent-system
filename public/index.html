@@ -9,9 +9,9 @@
   <link rel="stylesheet" href="layout.css?v=20260925-layout">
   <link rel="stylesheet" href="dashboard.css?v=20260926-weather-fit-2">
   <link rel="stylesheet" href="dark.css?v=20260926-depth">
-  <link rel="stylesheet" href="avatar.css?v=avatar2d-20260926-1">
+  <link rel="stylesheet" href="avatar.css?v=avatar25d-20260926-1">
   <link rel="stylesheet" href="device-feedback.css?v=fullbody-1">
-  <script type="module" src="avatar-2d.js?v=avatar2d-20260926-1"></script>
+  <script type="module" src="avatar-2d.js?v=avatar25d-20260926-1"></script>
   <!-- 引入 Chart.js 用于绘制折线图 -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -111,55 +111,100 @@
               </div>
               <div class="avatar-3d-wrapper" id="avatarStage">
                 <div class="avatar-2d-viewport" id="avatar-2d">
-                  <svg class="assistant-portrait" viewBox="0 0 420 440" role="img" aria-labelledby="assistantPortraitTitle" xmlns="http://www.w3.org/2000/svg">
-                    <title id="assistantPortraitTitle">浅蓝衣装、深蓝短发的二维数字人管家</title>
+                  <svg class="assistant-portrait" viewBox="0 0 420 500" role="img" aria-labelledby="assistantPortraitTitle" xmlns="http://www.w3.org/2000/svg">
+                    <title id="assistantPortraitTitle">柔和立体光影的数字人管家，双臂自然下垂，两只手分别位于身体两侧</title>
                     <defs>
-                      <linearGradient id="portraitCoat" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#b3dce9"/><stop offset="1" stop-color="#75a9c6"/></linearGradient>
-                      <linearGradient id="portraitHair" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#334d66"/><stop offset="1" stop-color="#20354d"/></linearGradient>
-                      <linearGradient id="portraitSkin" x1="0" y1="0" x2="0.8" y2="1"><stop stop-color="#ffe3cc"/><stop offset="1" stop-color="#eeb99e"/></linearGradient>
-                      <radialGradient id="portraitGlow"><stop stop-color="#f4ffff" stop-opacity=".9"/><stop offset="1" stop-color="#b8dbe7" stop-opacity=".12"/></radialGradient>
+                      <radialGradient id="portraitGlow"><stop stop-color="#efffff" stop-opacity=".85"/><stop offset="1" stop-color="#95c5d8" stop-opacity=".04"/></radialGradient>
+                      <radialGradient id="portraitSkin" cx=".35" cy=".3" r=".8"><stop stop-color="#ffe8d8"/><stop offset=".5" stop-color="#f2c6ae"/><stop offset=".83" stop-color="#dca48e"/><stop offset="1" stop-color="#bd8376"/></radialGradient>
+                      <linearGradient id="portraitNeck" x1="0" y1="0" x2=".6" y2="1"><stop stop-color="#a76e64"/><stop offset=".45" stop-color="#dfaa92"/><stop offset="1" stop-color="#f5cfb5"/></linearGradient>
+                      <radialGradient id="portraitHair" cx=".28" cy=".15" r=".93"><stop stop-color="#657589"/><stop offset=".28" stop-color="#35475d"/><stop offset=".65" stop-color="#223348"/><stop offset="1" stop-color="#15263b"/></radialGradient>
+                      <linearGradient id="portraitHairLight" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#a5b1be" stop-opacity=".48"/><stop offset=".5" stop-color="#718198" stop-opacity=".1"/><stop offset="1" stop-color="#243447" stop-opacity="0"/></linearGradient>
+                      <linearGradient id="portraitCoat" x1="0" y1="0" x2="1" y2=".3"><stop stop-color="#4d809e"/><stop offset=".2" stop-color="#9cc9dc"/><stop offset=".45" stop-color="#c2e2eb"/><stop offset=".7" stop-color="#83b7d0"/><stop offset="1" stop-color="#4b7d9e"/></linearGradient>
+                      <linearGradient id="portraitSleeve" x1="0" y1="0" x2="1" y2=".25"><stop stop-color="#c1e0e9"/><stop offset=".32" stop-color="#91bbd1"/><stop offset=".75" stop-color="#5e8fab"/><stop offset="1" stop-color="#39627f"/></linearGradient>
+                      <linearGradient id="portraitShirt" x1="0" y1="0" x2="1" y2=".5"><stop stop-color="#b8cdd4"/><stop offset=".3" stop-color="#f4f6f0"/><stop offset=".62" stop-color="#fdfcf5"/><stop offset="1" stop-color="#afc6cf"/></linearGradient>
+                      <linearGradient id="portraitLapel" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#e2f0f0"/><stop offset=".4" stop-color="#b6d9e5"/><stop offset="1" stop-color="#71a3bd"/></linearGradient>
+                      <radialGradient id="portraitCheek"><stop stop-color="#d98980" stop-opacity=".4"/><stop offset="1" stop-color="#d98980" stop-opacity="0"/></radialGradient>
+                      <radialGradient id="portraitNose"><stop stop-color="#fff1df"/><stop offset=".6" stop-color="#e5b098"/><stop offset="1" stop-color="#c28b7b" stop-opacity="0"/></radialGradient>
+                      <linearGradient id="portraitLip" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#b97476"/><stop offset=".5" stop-color="#ba7275"/><stop offset="1" stop-color="#df9c99"/></linearGradient>
+                      <radialGradient id="portraitIris" cx=".35" cy=".3"><stop stop-color="#738887"/><stop offset=".65" stop-color="#4a6065"/><stop offset="1" stop-color="#2d414c"/></radialGradient>
+                      <filter id="portraitSoftShadow" x="-.3" y="-.2" width="1.6" height="1.5"><feDropShadow dx="4" dy="8" stdDeviation="6" flood-color="#17394c" flood-opacity=".18"/></filter>
+                      <filter id="portraitBlur"><feGaussianBlur stdDeviation="3"/></filter>
+                      <clipPath id="portraitFaceClip"><path d="M159 110C159  80 183 68 212 72C241 72 257 91 257 115L254 163C251 183 237 207 217 211C193 210 174 191 166 172Z"/></clipPath>
                     </defs>
-                    <circle class="portrait-halo" cx="210" cy="210" r="163" fill="url(#portraitGlow)"/>
-                    <circle cx="210" cy="210" r="150" fill="none" stroke="#b0d0df" stroke-opacity=".55"/>
-                    <path d="M74 226a140 140 0 0 1 65-137M281 330a140 140 0 0 0 63-83" fill="none" stroke="#f6ffff" stroke-opacity=".8" stroke-width="3" stroke-linecap="round"/>
-                    <ellipse cx="210" cy="418" rx="104" ry="10" fill="#4e7a98" opacity=".12"/>
-                    <g class="portrait-body">
-                      <!-- Sloped shoulders and tapered sleeves keep the silhouette light. -->
-                      <path d="M169 250Q143 256 127 274Q115 299 109 350L103 408Q113 421 136 418L152 343L155 421H267L268 343L285 418Q306 421 316 408L310 349Q302 294 289 275Q277 259 250 250Z" fill="url(#portraitCoat)" stroke="#729bb5" stroke-width="1.5" stroke-linejoin="round"/>
-                      <path d="M185 229L184 260Q210 282 237 259L235 226" fill="url(#portraitSkin)"/>
-                      <path d="M185 236Q210 255 235 236L235 248Q211 265 185 249Z" fill="#d99f88" opacity=".4"/>
-                      <path d="M184 258Q210 271 237 258L247 421H172Z" fill="#f2f7f6"/>
-                      <path d="M177 250L157 273L181 295L192 270Z" fill="#d3edf1" stroke="#8ebacb" stroke-width="1.2"/>
-                      <path d="M243 250L261 273L239 295L227 270Z" fill="#d3edf1" stroke="#8ebacb" stroke-width="1.2"/>
-                      <path d="M158 292Q161 352 154 415M265 292Q261 352 268 415" fill="none" stroke="#6895b1" stroke-width="1.5" opacity=".65"/>
-                      <path d="M117 372Q139 385 177 389L181 406Q141 407 108 395M305 372Q282 386 244 390L240 407Q283 407 312 395" fill="#9fcbdc" stroke="#789fb7" stroke-width="1.3"/>
-                      <path d="M177 389Q191 384 205 389L223 398Q231 402 225 407Q219 411 208 405L196 402Q185 409 178 404Z" fill="url(#portraitSkin)" stroke="#ce9a84" stroke-width="1.2"/>
-                      <path d="M244 390Q229 386 218 391L200 401Q194 405 200 409Q206 413 215 407L229 402Q237 408 244 404Z" fill="url(#portraitSkin)" stroke="#ce9a84" stroke-width="1.2"/>
-                      <path d="M219 398L209 403M225 401L216 406" fill="none" stroke="#c8907c" stroke-width="1" stroke-linecap="round"/>
-                      <rect x="245" y="304" width="12" height="20" rx="6" fill="#e6f3f3" stroke="#7ba7bc"/>
-                      <circle cx="251" cy="310" r="2.5" fill="#548b9f"/>
-                      <path d="M248 316h6" stroke="#7ba7bc" stroke-linecap="round"/>
+                    <g class="portrait-depth-back">
+                      <ellipse class="portrait-halo" cx="210" cy="238" rx="170" ry="192" fill="url(#portraitGlow)"/>
+                      <ellipse cx="213" cy="475" rx="102" ry="11" fill="#416b87" opacity=".16" filter="url(#portraitBlur)"/>
                     </g>
-                    <g class="portrait-head">
-                      <path d="M145 133Q132 77 174 54Q207 34 244 48Q284 61 279 121L280 208Q278 238 251 253L163 251Q137 236 139 210Z" fill="url(#portraitHair)"/>
-                      <path d="M150 150Q136 144 138 161Q141 178 154 178M267 150Q281 144 279 161Q278 178 264 178" fill="#edb49b"/>
-                      <path d="M156 111Q164 75 209 72Q257 76 266 114L263 174Q258 215 231 236Q211 249 191 236Q160 216 155 177Z" fill="url(#portraitSkin)" stroke="#d8a58e" stroke-width="1.2"/>
-                      <path d="M146 157Q139 123 153 90Q170 51 214 58Q253 54 272 90Q284 115 268 163L256 141L254 107Q221 111 198 87Q184 117 160 126L158 160Z" fill="url(#portraitHair)"/>
-                      <path d="M156 103Q163 69 195 65M212 66Q247 65 261 91" fill="none" stroke="#526b81" stroke-width="3" stroke-linecap="round" opacity=".65"/>
-                      <path d="M162 143Q176 136 189 142M231 142Q245 136 258 144" fill="none" stroke="#4d4b50" stroke-width="3" stroke-linecap="round"/>
-                      <g class="portrait-eyes">
-                        <path d="M161 158Q175 148 189 159Q175 168 161 158M231 159Q245 149 259 158Q245 168 231 159" fill="#fffaf2"/>
-                        <ellipse cx="177" cy="158" rx="5.7" ry="7" fill="#425365"/><ellipse cx="243" cy="158" rx="5.7" ry="7" fill="#425365"/>
-                        <circle cx="177" cy="159" r="3" fill="#25394b"/><circle cx="243" cy="159" r="3" fill="#25394b"/>
-                        <circle cx="179" cy="155" r="1.8" fill="#fff"/><circle cx="245" cy="155" r="1.8" fill="#fff"/>
-                        <path d="M161 158Q175 148 189 159M231 159Q245 149 259 158" fill="none" stroke="#4c4550" stroke-width="2" stroke-linecap="round"/>
+                    <g class="portrait-person" filter="url(#portraitSoftShadow)">
+                      <g class="portrait-body">
+                        <!-- Each sleeve connects to exactly one hand. No crossed-arm overlay. -->
+                        <g class="portrait-arm" data-side="left">
+                          <path class="portrait-hand" d="M113 399L131 402L130 414Q139 418 139 425Q138 429 134 426L133 424L133 442Q132 449 127 447Q124 455 119 449Q113 444 111 437Q106 424 111 411Z" fill="url(#portraitSkin)"/>
+                          <path d="M116 429Q116 440 121 447M123 428L127 443M130 414Q125 418 127 427" fill="none" stroke="#bb8575" stroke-width="1.15" stroke-linecap="round" opacity=".65"/>
+                          <path class="portrait-sleeve" d="M157 235Q138 237 127 257C113 284 114 316 110 342L103 400Q115 410 135 405L144 350L165 282Q171 253 157 235Z" fill="url(#portraitSleeve)"/>
+                          <path d="M128 264Q119 289 118 318L111 388" fill="none" stroke="#e1f0f2" stroke-width="3" opacity=".34" stroke-linecap="round"/>
+                          <path d="M104 392Q118 402 136 397L135 406Q117 411 103 401Z" fill="#c1dce5"/>
+                          <path d="M129 326L142 340M129 332L140 342" fill="none" stroke="#467794" stroke-width="1.2" opacity=".45"/>
+                        </g>
+                        <g class="portrait-arm" data-side="right">
+                          <path class="portrait-hand" d="M291 402L309 399L311 412Q316 425 310 438Q308 445 302 450Q298 455 295 448Q289 450 288 443L287 425Q282 431 280 426Q279 420 289 414Z" fill="url(#portraitSkin)"/>
+                          <path d="M306 430Q305 442 301 447M299 430L295 443M289 414Q295 418 293 427" fill="none" stroke="#b77e6e" stroke-width="1.15" stroke-linecap="round" opacity=".65"/>
+                          <path class="portrait-sleeve" d="M266 236Q283 239 294 259C308 288 307 318 312 345L319 401Q306 411 286 406L277 352L255 282Q250 254 266 236Z" fill="url(#portraitSleeve)"/>
+                          <path d="M289 267Q298 287 300 318L309 388" fill="none" stroke="#d9eced" stroke-width="2" opacity=".28" stroke-linecap="round"/>
+                          <path d="M286 397Q304 403 318 393L319 401Q305 412 286 406Z" fill="#a4c8d9"/>
+                          <path d="M281 341L295 330M282 345L295 337" fill="none" stroke="#416c88" stroke-width="1.2" opacity=".5"/>
+                        </g>
+                        <path d="M192 218Q169 224 148 240Q142 258 150 303L158 353L150 457Q209 476 273 456L264 356L276 283Q285 250 266 239Q247 226 232 220Z" fill="url(#portraitCoat)"/>
+                        <path d="M195 197L194 222Q191 233 188 237Q210 256 239 235L232 221L231 192Z" fill="url(#portraitNeck)"/>
+                        <path d="M193 229Q209 244 235 229L249 454Q214 463 181 454Z" fill="url(#portraitShirt)"/>
+                        <path d="M194 229Q211 240 235 229L236 237Q213 249 192 237Z" fill="#eaf1ed"/>
+                        <path d="M184 222L168 245L184 263L176 277L202 310L196 245Z" fill="#456f8b" opacity=".2" transform="translate(3 3)"/>
+                        <path d="M183 222L166 243L182 261L176 275L201 306L194 239Z" fill="url(#portraitLapel)"/>
+                        <path d="M239 223L258 244L241 263L248 277L224 307L232 239Z" fill="#456f8b" opacity=".18" transform="translate(3 3)"/>
+                        <path d="M238 222L256 243L239 261L246 275L222 306L230 239Z" fill="url(#portraitLapel)"/>
+                        <path d="M166 245L180 261M256 244L240 261" fill="none" stroke="#e9f7f5" stroke-width="1.3" opacity=".8"/>
+                        <path d="M167 302Q180 347 170 398M256 306Q243 350 252 403" fill="none" stroke="#4a7f9e" stroke-width="2" opacity=".18"/>
+                        <path d="M159 373L179 378M247 378L266 374" fill="none" stroke="#4f809a" stroke-width="2" opacity=".45"/>
+                        <path d="M154 449Q176 455 192 454M234 455Q256 456 270 450" fill="none" stroke="#cce8ed" stroke-width="1.2" opacity=".6"/>
+                        <rect x="250" y="282" width="9" height="19" rx="4.5" fill="#e5f2ef"/>
+                        <circle cx="254.5" cy="288" r="2" fill="#59959e"/>
+                        <path d="M252 295h5" stroke="#91afb9" stroke-width="1.2" stroke-linecap="round"/>
                       </g>
-                      <path d="M209 160L205 179Q210 184 216 179" fill="none" stroke="#ca9581" stroke-width="1.6" stroke-linecap="round"/>
-                      <ellipse cx="171" cy="180" rx="12" ry="5" fill="#de927f" opacity=".23"/><ellipse cx="249" cy="180" rx="12" ry="5" fill="#de927f" opacity=".23"/>
-                      <path class="portrait-smile" d="M196 201Q210 213 225 200Q211 206 196 201Z" fill="#b86d70"/>
-                      <path d="M204 213Q211 215 218 212" fill="none" stroke="#d49686" stroke-width="1" stroke-linecap="round"/>
-                      <g class="portrait-mouth-open"><ellipse cx="211" cy="204" rx="10" ry="6" fill="#904f5b"/><path d="M204 200Q211 202 218 200" stroke="#fff7ed" stroke-width="2" stroke-linecap="round"/><ellipse cx="211" cy="208" rx="5" ry="1.5" fill="#d18a91"/></g>
-                      <circle cx="150" cy="180" r="3.5" fill="#e4efee" stroke="#89a6b5"/><circle cx="269" cy="180" r="3.5" fill="#e4efee" stroke="#89a6b5"/>
+                      <g class="portrait-head">
+                        <path d="M145 124C136  80 153 48 183 39C220 27 252 42 268 68C280 91 271 131 273 166L278 216Q256 239 229 225L175 227Q146 223 143 205Z" fill="url(#portraitHair)"/>
+                        <path d="M152 138Q140 133 143 149Q145 166 157 168M253 140Q267 136 264 151Q262 167 251 168" fill="url(#portraitSkin)"/>
+                        <path d="M147 144Q152 143 152 155M259 145Q254 146 257 155" fill="none" stroke="#b57b70" stroke-width="1.5" opacity=".6"/>
+                        <path class="portrait-face" d="M159 110C159  80 183 68 212 72C241 72 257 91 257 115L254 163C251 183 237 207 217 211C193 210 174 191 166 172Z" fill="url(#portraitSkin)"/>
+                        <g clip-path="url(#portraitFaceClip)">
+                          <ellipse cx="178" cy="121" rx="31" ry="39" fill="#fff2df" opacity=".19" filter="url(#portraitBlur)"/>
+                          <path d="M250 103Q259 164 239 187L226 202Q252 194 264 159L266 110Z" fill="#a96762" opacity=".17" filter="url(#portraitBlur)"/>
+                          <ellipse cx="178" cy="163" rx="20" ry="15" fill="url(#portraitCheek)"/><ellipse cx="240" cy="164" rx="18" ry="15" fill="url(#portraitCheek)"/>
+                          <ellipse cx="212" cy="195" rx="17" ry="6" fill="#ffe9d2" opacity=".3" filter="url(#portraitBlur)"/>
+                        </g>
+                        <path d="M145 140Q138 105 153 74Q170 40 207 43Q247 41 263 72Q276 97 258 146L250 125L249 106Q217 104 198 82Q190 105 161 119L157 145Z" fill="url(#portraitHair)"/>
+                        <path d="M151 115Q149  70 183 55Q204 44 222 51Q177 51 167 88Q161 104 151 115" fill="url(#portraitHairLight)"/>
+                        <path d="M202 52Q237 48 254 78Q242 64 221 64Z" fill="url(#portraitHairLight)"/>
+                        <path d="M155 95Q160 64 189 53M209 55Q242 53 255 83M151 160Q146 194 160 210M263 168Q266 199 256 211" fill="none" stroke="#8494a5" stroke-width="1.3" opacity=".22" stroke-linecap="round"/>
+                        <path d="M169 125Q180 118 193 124M226 124Q238 120 248 127" fill="none" stroke="#4c4549" stroke-width="2.5" stroke-linecap="round"/>
+                        <path d="M169 134Q181 126 193 135M226 135Q236 128 247 135" fill="none" stroke="#bc8b7c" stroke-width="1.4" opacity=".65" stroke-linecap="round"/>
+                        <g class="portrait-eyes">
+                          <path d="M169 140Q180 131 193 140Q181 147 169 140M226 140Q237 132 248 141Q237 147 226 140" fill="#f6f0e6"/>
+                          <ellipse cx="183" cy="139.5" rx="4.5" ry="5.5" fill="url(#portraitIris)"/><ellipse cx="238" cy="140" rx="4.2" ry="5.2" fill="url(#portraitIris)"/>
+                          <ellipse cx="183" cy="140" rx="2.4" ry="3.2" fill="#20313c"/><ellipse cx="238" cy="140.5" rx="2.3" ry="3.1" fill="#20313c"/>
+                          <circle cx="184.5" cy="138" r="1.3" fill="#fff"/><circle cx="239.5" cy="138.5" r="1.2" fill="#fff"/>
+                          <path d="M169 140Q180 131 193 140M226 140Q237 132 248 141" fill="none" stroke="#56474a" stroke-width="1.6" stroke-linecap="round"/>
+                        </g>
+                        <path d="M172 146Q182 150 191 145M228 145Q238 150 246 147" fill="none" stroke="#c09181" stroke-width="1" opacity=".6"/>
+                        <path d="M210 133Q207 149 205 160Q208 168 218 164L219 158Z" fill="url(#portraitNose)"/>
+                        <path d="M205 162Q207 165 210 164M216 164L219 162" fill="none" stroke="#b68074" stroke-width="1.1" stroke-linecap="round" opacity=".8"/>
+                        <g class="portrait-smile">
+                          <path d="M197 180Q205 178 209 179Q213 176 219 180L226 178Q218 189 209 188Q202 187 197 180" fill="url(#portraitLip)"/>
+                          <path d="M198 180Q211 184 225 179" fill="none" stroke="#995e64" stroke-width="1.1" stroke-linecap="round"/>
+                          <path d="M206 186Q213 188 218 185" fill="none" stroke="#f6c2b8" stroke-width="1" opacity=".7"/>
+                        </g>
+                        <g class="portrait-mouth-open"><ellipse cx="212" cy="182" rx="9" ry="5" fill="#874e58"/><path d="M205 179Q212 181 219 178.5" stroke="#fff0df" stroke-width="1.5" stroke-linecap="round"/><ellipse cx="212" cy="185" rx="4.5" ry="1.2" fill="#cc8e95"/></g>
+                        <circle cx="151" cy="169" r="2.8" fill="#d7e3e7"/><circle cx="151" cy="168" r="1.2" fill="#fff9ee"/><circle cx="258" cy="169" r="2.5" fill="#b8d0d9"/>
+                      </g>
                     </g>
                   </svg>
                 </div>
@@ -403,7 +448,7 @@
     <button type="button" class="global-voice-close" onclick="hideGlobalVoiceStatus(true)" aria-label="关闭语音状态"><svg class="ui-icon" aria-hidden="true"><use href="icons.svg?v=20260925#icon-close"></use></svg></button>
   </div>
 
-  <script src="app.js?v=avatar2d-20260926-1"></script>
-  <script src="report.js?v=avatar2d-20260926-1"></script>
+  <script src="app.js?v=avatar25d-20260926-1"></script>
+  <script src="report.js?v=avatar25d-20260926-1"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-import { AvatarSpeech } from './avatar-speech.mjs?v=avatar2d-20260926-1';
+import { AvatarSpeech } from './avatar-speech.mjs?v=avatar25d-20260926-1';
 
 const stage = document.getElementById('avatarStage');
 const host = document.getElementById('avatar-2d');
@@ -16,6 +16,7 @@ function syncAccess() {
   if (!active) {
     speech.stop();
     stage.classList.remove('listening');
+    resetDepth();
   }
 }
 function resize() {
@@ -23,10 +24,24 @@ function resize() {
   if (stage.style.getPropertyValue('--avatar-caption-space') !== space) stage.style.setProperty('--avatar-caption-space', space);
   const compact = host.clientHeight > 0 && host.clientHeight < 180;
   stage.classList.toggle('avatar-compact', compact);
-  const viewBox = compact ? '85 30 250 340' : '0 0 420 440';
+  const viewBox = compact ? '100 25 220 300' : '0 0 420 500';
   const portrait = host.querySelector('svg');
   if (portrait.getAttribute('viewBox') !== viewBox) portrait.setAttribute('viewBox', viewBox);
 }
+function resetDepth() {
+  host.style.removeProperty('--portrait-x');
+  host.style.removeProperty('--portrait-y');
+}
+// Small layer offsets suggest depth without distorting facial anatomy or arm joints.
+stage.addEventListener('pointermove', event => {
+  if (!enabled() || event.pointerType !== 'mouse' || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const rect = stage.getBoundingClientRect();
+  const x = Math.max(-1, Math.min(1, (event.clientX - rect.left) / rect.width * 2 - 1));
+  const y = Math.max(-1, Math.min(1, (event.clientY - rect.top) / rect.height * 2 - 1));
+  host.style.setProperty('--portrait-x', (x * 2.5).toFixed(2) + 'px');
+  host.style.setProperty('--portrait-y', (y * 1.5).toFixed(2) + 'px');
+});
+stage.addEventListener('pointerleave', resetDepth);
 window.HomeAvatar = {
   get ready() { return !!host.querySelector('svg'); },
   get canSpeak() { return speech.canSpeak; },
