@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="layout.css?v=20260925-layout">
   <link rel="stylesheet" href="dashboard.css?v=20260926-weather-fit-2">
   <link rel="stylesheet" href="dark.css?v=20260926-depth">
-  <link rel="stylesheet" href="avatar.css?v=avatar-tech-20260926-1">
+  <link rel="stylesheet" href="avatar.css?v=avatar-tech-20260926-decor-1">
   <link rel="stylesheet" href="device-feedback.css?v=fullbody-1">
   <script type="module" src="avatar-2d.js?v=avatar-tech-20260926-1"></script>
   <!-- 引入 Chart.js 用于绘制折线图 -->
@@ -112,7 +112,7 @@
               <div class="avatar-3d-wrapper" id="avatarStage">
                 <div class="avatar-2d-viewport" id="avatar-2d">
                   <svg class="assistant-portrait" viewBox="0 0 420 440" role="img" aria-labelledby="assistantPortraitTitle" xmlns="http://www.w3.org/2000/svg">
-                    <title id="assistantPortraitTitle">银灰与石墨材质的中性科技数字人，简洁面部，一体式头颈与半身轮廓</title>
+                    <title id="assistantPortraitTitle">银灰与石墨材质的中性科技数字人，简洁面部，配有耳侧金属饰件、肩部织纹和家居徽章</title>
                     <defs>
                       <radialGradient id="portraitGlow"><stop stop-color="#e3f4f5" stop-opacity=".68"/><stop offset="1" stop-color="#a5c8d5" stop-opacity="0"/></radialGradient>
                       <linearGradient id="techTorso" x1="0" y1="0" x2="1" y2=".35"><stop stop-color="#344957"/><stop offset=".27" stop-color="#688390"/><stop offset=".52" stop-color="#8199a2"/><stop offset=".8" stop-color="#536e7c"/><stop offset="1" stop-color="#2d4657"/></linearGradient>
@@ -126,8 +126,18 @@
                       <linearGradient id="techChest" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#9fb4bc" stop-opacity=".45"/><stop offset="1" stop-color="#7a94a0" stop-opacity="0"/></linearGradient>
                       <filter id="techShadow" x="-.3" y="-.2" width="1.6" height="1.5"><feDropShadow dx="2" dy="7" stdDeviation="7" flood-color="#163748" flood-opacity=".18"/></filter>
                       <filter id="techBlur"><feGaussianBlur stdDeviation="4"/></filter>
+                      <pattern id="techPanelGrid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="currentColor" stroke-width=".55"/></pattern>
+                      <pattern id="techFabric" width="4" height="4" patternUnits="userSpaceOnUse"><path d="M0 1h4M1 0v4" stroke="#afc2cc" stroke-width=".45" opacity=".25"/></pattern>
+                      <linearGradient id="techEarTrim" x1="0" y1="0" x2="1" y2=".4"><stop stop-color="#d1dedf"/><stop offset=".5" stop-color="#89a6b4"/><stop offset="1" stop-color="#4f7387"/></linearGradient>
                     </defs>
                     <g class="portrait-depth-back" aria-hidden="true">
+                      <g class="tech-panel-detail">
+                        <rect x="62" y="90" width="296" height="282" rx="12" fill="url(#techPanelGrid)" opacity=".22"/>
+                        <path d="M59 121V96Q59 87 68 87H88M332 87H352Q361 87 361 96V121M59 326V354Q59 363 68 363H89M331 363H352Q361 363 361 354V326" fill="none" stroke="currentColor" stroke-width="1"/>
+                        <path d="M73 167V144L91 126M347 267V289L329 307" fill="none" stroke="currentColor" stroke-width=".8"/>
+                        <circle cx="73" cy="169" r="2" fill="currentColor"/><circle cx="347" cy="265" r="2" fill="currentColor"/>
+                        <path d="M117 68A163 163 0 0 1 155 53M281 55A163 163 0 0 1 321 82" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".7"/>
+                      </g>
                       <ellipse class="portrait-halo" cx="210" cy="225" rx="171" ry="182" fill="url(#portraitGlow)"/>
                       <path d="M91 292A153 153 0 1 1 329 292" fill="none" stroke="#8eafbf" stroke-width=".8" opacity=".35"/>
                       <path d="M65 191v22M355 191v22M198 49h24" fill="none" stroke="#7198ac" stroke-width="1.2" opacity=".5"/>
@@ -147,6 +157,19 @@
                           <path d="M125 317Q161 307 191 321L210 333L230 321Q264 307 295 318L282 397Q211 409 139 396Z" fill="url(#techChest)"/>
                           <path d="M104 337L110 386M316 337L310 386M127 317L143 334M293 317L277 334" fill="none" stroke="#284556" stroke-width="1.2" opacity=".42"/>
                           <path d="M136 303L163 295M258 296L284 304" fill="none" stroke="url(#techAccent)" stroke-width="2.3" stroke-linecap="round"/>
+                          <g class="tech-garment-detail" aria-hidden="true">
+                            <path d="M117 309Q133 299 155 298L166 305Q139 310 126 321Z" fill="#385363" opacity=".35"/>
+                            <path d="M117 309Q133 299 155 298L166 305Q139 310 126 321Z" fill="url(#techFabric)"/>
+                            <path d="M253 305L265 298Q288 300 304 310L295 321Q279 310 253 305Z" fill="#385363" opacity=".35"/>
+                            <path d="M253 305L265 298Q288 300 304 310L295 321Q279 310 253 305Z" fill="url(#techFabric)"/>
+                            <path d="M118 309Q133 300 154 299M266 299Q287 301 302 310" fill="none" stroke="#c0d0d4" stroke-width=".7" opacity=".65"/>
+                            <g class="tech-home-badge">
+                              <path d="M159 327L169 321L179 327V339L169 345L159 339Z" fill="#354f60" stroke="#b7bdba" stroke-width=".9"/>
+                              <path d="M163.5 332L169 327L174.5 332M165 331V338H173V331M168 338V334H170V338" fill="none" stroke="#c4d7d8" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+                            </g>
+                            <path d="M255 328h15M255 332h10" fill="none" stroke="#b0c9cf" stroke-width="1.2" stroke-linecap="round" opacity=".6"/>
+                            <circle cx="128" cy="374" r="1.2" fill="#9fb5bf"/><circle cx="291" cy="374" r="1.2" fill="#9fb5bf"/>
+                          </g>
                           <path d="M149 347L170 359H190M271 347L250 359H230" fill="none" stroke="#b1d3d8" stroke-width=".8" opacity=".45"/>
                           <rect class="tech-signal" x="207" y="327" width="6" height="25" rx="3" fill="url(#techAccent)" opacity=".8"/>
                           <path d="M211 365v26" stroke="#375465" stroke-width="1.1" opacity=".45"/>
@@ -156,6 +179,12 @@
                           <path d="M153 146Q144 143 143 157L148 184Q151 193 159 188L158 150Z" fill="url(#techSide)"/>
                           <path d="M266 146Q275 143 276 157L271 184Q268 193 260 188L261 150Z" fill="url(#techSide)"/>
                           <path d="M149 156L152 177M270 156L267 177" stroke="#a6c5d0" stroke-width="1" opacity=".7"/>
+                          <g class="tech-ear-detail" aria-hidden="true">
+                            <path d="M147 154Q149 150 152 154L156 178Q155 183 152 181Z" fill="#38566a" stroke="url(#techEarTrim)" stroke-width="1.2"/>
+                            <path d="M268 154Q271 150 273 154L269 179Q266 183 265 179Z" fill="#38566a" stroke="url(#techEarTrim)" stroke-width="1.2"/>
+                            <path d="M149 158L152 174M270 158L267 174" stroke="#a6cecf" stroke-width="1.1" stroke-linecap="round" opacity=".8"/>
+                            <circle cx="152.5" cy="178" r="1" fill="#b8c6c7"/><circle cx="267" cy="178" r="1" fill="#b8c6c7"/>
+                          </g>
                           <path class="portrait-face" d="M154 126Q153 88 173 72Q189 58 210 58Q237 58 252 77Q267 94 266 127L263 176Q259 204 238 225Q224 239 211 241Q194 237 180 223Q160 203 156 177Z" fill="url(#techFace)"/>
                           <path d="M154 123L165 143L166 178L181 208L184 224Q163 205 158 183Z" fill="#6a889b" opacity=".25"/>
                           <path d="M265 121L252 143L252 180L239 207L236 226Q257 208 261 182Z" fill="#466b85" opacity=".21"/>
