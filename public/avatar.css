@@ -21,6 +21,9 @@ body.dark-mode #page-overview .digital-human-card #avatarStage { background:radi
 body.dark-mode .portrait-halo { opacity:.10; }
 body.dark-mode #page-overview .digital-human-card .avatar-caption { background:#172f44f5; border-color:#779bb5; }
 .avatar-compact .assistant-portrait { max-width:210px; }
+.tech-glass-panel { fill:#a5cbdc; fill-opacity:.2; stroke:#709ab3; stroke-width:.8; stroke-opacity:.3; }
+body.dark-mode .tech-glass-panel { fill:#40768b; fill-opacity:.13; stroke:#87b0c5; stroke-opacity:.28; }
+.avatar-compact .tech-display-panel { display:none; }
 .tech-panel-detail { color:#507e94; opacity:.43; }
 body.dark-mode .tech-panel-detail { color:#8ab0c3; opacity:.48; }
 .avatar-compact .tech-panel-detail { display:none; }
