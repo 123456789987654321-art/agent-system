@@ -3,7 +3,7 @@ const express = require('express');
 const http = require('http');
 const path = require('path');
 const WebSocket = require('ws');
-const axios = require('axios');
+const { requestPlan, validateConfig, toLlmError } = require('./services/llm-client');
 const { splitCommandClauses, parseTaskCommand } = require('./public/task-parser');
 const { createAddressLookup } = require('./services/location-address');
 const lookupAddress = createAddressLookup();
@@ -422,15 +422,6 @@ async function handleTaskCommand(userInput) {
 
 // 核心：处理 Agent 推理与动态 LLM 调用
 async function processAgentThought(userInput, llmConfig) {
-  const apiKey = typeof llmConfig?.apiKey === 'string' ? llmConfig.apiKey.trim() : '';
-  if (!apiKey) return '请先前往设置页面，填入您的 AI 密钥。';
-
-  const taskReply = await handleTaskCommand(userInput);
-  if (taskReply) return taskReply.reply;
-
-  const explicitDeviceReply = await handleExplicitDeviceCommand(userInput);
-  if (explicitDeviceReply) return explicitDeviceReply.reply;
-
   const deviceNameList = DEVICE_DEFINITIONS
     .map(device => `${device.key}=${device.name}`)
     .join('、');
@@ -454,42 +445,12 @@ async function processAgentThought(userInput, llmConfig) {
 如果用户指定具体钟点，execute 使用 scheduled，scheduledTime 使用 HH:mm；提醒必须设置 reminder=true。`;
 
   try {
-    const tempMap = { 'low': 0.0, 'medium': 0.5, 'high': 1.0 };
-    const requestTemp = tempMap[llmConfig.level] || 0.0;
-
-    let apiUrl = '';
-    let reqModel = '';
-    
-    if (llmConfig.provider === 'deepseek') {
-      apiUrl = 'https://api.deepseek.com/chat/completions';
-      reqModel = 'deepseek-chat';
-    } else if (llmConfig.provider === 'qwen') {
-      apiUrl = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
-      reqModel = 'qwen-plus';
-    } else if (llmConfig.provider === 'doubao') {
-      apiUrl = 'https://ark.cn-beijing.volces.com/api/v3/chat/completions';
-      reqModel = 'doubao-pro-32k'; 
-    }
-
-    broadcastLog(`[请求参数] 平台: ${llmConfig.provider}, 创造力: ${requestTemp}`);
-
-    const response = await axios.post(
-      apiUrl,
-      {
-        model: reqModel,
-        temperature: requestTemp,
-        response_format: { type: 'json_object' },
-        messages: [{ role: 'user', content: systemPrompt }]
-      },
-      { 
-        headers: { 
-          'Authorization': `Bearer ${llmConfig.apiKey}`,
-          'Content-Type': 'application/json'
-        } 
-      }
-    );
-
-    const result = JSON.parse(response.data.choices[0].message.content);
+    // Verify the selected model on every instruction before local side effects.
+    const { plan: result } = await requestPlan(llmConfig, systemPrompt);
+    const taskReply = await handleTaskCommand(userInput);
+    if (taskReply) return taskReply.reply;
+    const explicitDeviceReply = await handleExplicitDeviceCommand(userInput);
+    if (explicitDeviceReply) return explicitDeviceReply.reply;
     broadcastLog(`[AI 规划]：${JSON.stringify(result.actions)}`);
 
     if(result.actions) {
@@ -514,11 +475,22 @@ async function processAgentThought(userInput, llmConfig) {
     return result.reply;
 
   } catch (err) {
-    let errMsg = err.response ? err.response.data.error?.message || err.response.statusText : err.message;
-    broadcastLog(`[调度失败] 检查API Key或网络。错误信息: ${errMsg}`);
-    return "抱歉，调用大模型失败。";
+    const failure = toLlmError(err);
+    broadcastLog("[调度失败] " + failure.code + "：" + failure.message);
+    throw failure;
   }
 }
+
+app.post('/api/validate_config', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  try {
+    const config = await validateConfig(req.body?.llmConfig);
+    res.json({ success: true, ...config });
+  } catch (error) {
+    const failure = toLlmError(error);
+    res.status(failure.status).json({ error: failure.message, code: failure.code });
+  }
+});
 
 app.post('/api/interact', async (req, res) => {
   const { text, llmConfig } = req.body || {};
@@ -526,8 +498,13 @@ app.post('/api/interact', async (req, res) => {
     return res.status(401).json({ error: '请先在设置中填入 API Key 并保存，或使用页面按钮手动控制。', code: 'API_KEY_REQUIRED' });
   }
   if (typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: '指令不能为空' });
-  const reply = await processAgentThought(text, llmConfig);
-  res.json({ reply });
+  try {
+    const reply = await processAgentThought(text, llmConfig);
+    res.json({ reply });
+  } catch (error) {
+    const failure = toLlmError(error);
+    res.status(failure.status).json({ error: failure.message, code: failure.code });
+  }
 });
 
 app.post('/api/task_alerts/ack', (req, res) => {

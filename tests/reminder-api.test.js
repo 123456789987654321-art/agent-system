@@ -15,7 +15,7 @@ async function fixture(t) {
   await new Promise(resolve => listener.listen(0, '127.0.0.1', resolve));
   const port = listener.address().port;
   await new Promise(resolve => listener.close(resolve));
-  const child = spawn(process.execPath, ['server.js'], {
+  const child = spawn(process.execPath, ['--require', './tests/fixtures/llm-transport.cjs', 'server.js'], {
     cwd: path.resolve(__dirname, '..'), windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env, PORT: String(port), REPORT_DATA_FILE: path.join(directory, 'events.json') }
   });
@@ -39,7 +39,7 @@ async function fixture(t) {
     assert.equal(response.status, 200);
     return response.json();
   };
-  const interact = text => post('/api/interact', { text, llmConfig: { apiKey: 'test-local-parser-only' } });
+  const interact = text => post('/api/interact', { text, llmConfig: { apiKey: 'test-valid', provider: 'deepseek' } });
   const report = async () => (await fetch(url + '/api/report/today')).json();
   const waitFor = async predicate => {
     const deadline = Date.now() + 5000;

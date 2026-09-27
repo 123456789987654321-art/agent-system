@@ -41,12 +41,14 @@ window.onload = () => {
   const savedKey = sessionStorage.getItem('agentApiKey') || localStorage.getItem('agentApiKey');
   const savedProvider = localStorage.getItem('agentProvider') || 'deepseek';
   const savedLevel = localStorage.getItem('agentLevel') || 'low';
+  document.getElementById('modelInput').value = localStorage.getItem('agentModel') || '';
   
   if (savedKey) document.getElementById('apiKeyInput').value = savedKey;
   document.querySelector(`input[name="provider"][value="${savedProvider}"]`).checked = true;
   document.querySelector(`input[name="level"][value="${savedLevel}"]`).checked = true;
   updatePlaceholder();
   updateAgentConnectionState();
+  if (savedKey) verifyAgentConfiguration(getDraftAgentConfig());
 
   initLocationAndWeather();
   startWeatherAutoRefresh();
@@ -188,14 +190,105 @@ function startWeatherAutoRefresh() {
 
 // ==== AI 管家在线 / 离线状态（是否已配置可用 API Key）====
 const AGENT_ONLINE_CAPTION = { title: '管家已启用', text: '先生，随时听候您的差遣。' };
-const AGENT_OFFLINE_CAPTION = { title: '管家未启用', text: '在「设置」保存 API Key 后启用管家。当前可使用按钮手动控制。' };
+const AGENT_OFFLINE_CAPTION = { title: '管家未启用', text: '在「设置」验证模型与 API Key 后启用管家。当前可使用按钮手动控制。' };
 let agentOfflineState = null;
+let verifiedAgentConfig = '';
+let configValidationVersion = 0;
+let configValidationController = null;
 
-// Only a saved key enables the agent; typing an unsaved draft does not.
+function getDraftAgentConfig() {
+  return {
+    apiKey: document.getElementById('apiKeyInput').value.trim(),
+    provider: document.querySelector('input[name="provider"]:checked').value,
+    model: document.getElementById('modelInput').value.trim(),
+    level: document.querySelector('input[name="level"]:checked').value
+  };
+}
+
+function configFingerprint(config) {
+  return JSON.stringify([config.apiKey, config.provider, config.model]);
+}
+
+function showConfigStatus(message, success = false) {
+  const status = document.getElementById('saveStatus');
+  document.getElementById('saveStatusText').innerText = message;
+  status.style.display = 'inline-block';
+  status.style.color = success ? '#48bb78' : '#e53e3e';
+  const icon = status.querySelector('svg');
+  if (icon) icon.style.display = success ? '' : 'none';
+}
+
+function invalidateAgentConfiguration() {
+  configValidationVersion++;
+  configValidationController?.abort();
+  configValidationController = null;
+  verifiedAgentConfig = '';
+  document.getElementById('saveStatus').style.display = 'none';
+  updateAgentConnectionState();
+}
+
+async function verifyAgentConfiguration(config, mode) {
+  invalidateAgentConfiguration();
+  const version = configValidationVersion;
+  const fingerprint = configFingerprint(config);
+  const controller = new AbortController();
+  configValidationController = controller;
+  const timeout = setTimeout(() => controller.abort(), 35000);
+  showConfigStatus('正在向所选模型平台验证，请稍候…');
+  try {
+    const response = await fetch('/api/validate_config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({ llmConfig: config })
+    });
+    const data = await response.json();
+    if (version !== configValidationVersion || fingerprint !== configFingerprint(getDraftAgentConfig())) return false;
+    if (!response.ok || data.success !== true) throw new Error(data.error || '模型验证失败，请检查配置。');
+    if (mode) {
+      const storage = mode === 'permanent' ? localStorage : sessionStorage;
+      const other = mode === 'permanent' ? sessionStorage : localStorage;
+      storage.setItem('agentApiKey', config.apiKey);
+      other.removeItem('agentApiKey');
+      localStorage.setItem('agentProvider', config.provider);
+      localStorage.setItem('agentModel', config.model);
+      localStorage.setItem('agentLevel', config.level);
+    }
+    verifiedAgentConfig = fingerprint;
+    updateAgentConnectionState();
+    showConfigStatus('模型连接验证成功' + (mode === 'session' ? '，密钥仅本次使用' : mode ? '，配置已保存' : ''), true);
+    return true;
+  } catch (error) {
+    if (version !== configValidationVersion) return false;
+    verifiedAgentConfig = '';
+    updateAgentConnectionState();
+    const message = error.name === 'AbortError' ? '验证超时，请检查网络后重试。' : error.message || '验证失败，请稍后重试。';
+    showConfigStatus(message);
+    showGlobalVoiceStatus('模型验证失败', message, 'idle');
+    hideGlobalVoiceStatus();
+    return false;
+  } finally {
+    clearTimeout(timeout);
+    if (configValidationController === controller) configValidationController = null;
+  }
+}
+
+function showAgentRequestFailure(message) {
+  invalidateAgentConfiguration();
+  showConfigStatus(message);
+  showGlobalVoiceStatus('模型验证或调用失败', message, 'idle');
+  hideGlobalVoiceStatus();
+}
+
+// Saved configuration must exactly match the current fields.
 function getEffectiveApiKey() {
-  const saved = (sessionStorage.getItem('agentApiKey') || localStorage.getItem('agentApiKey') || '').trim();
-  const field = document.getElementById('apiKeyInput');
-  return field && !field.value.trim() ? '' : saved;
+  const draft = getDraftAgentConfig();
+  const saved = {
+    apiKey: (sessionStorage.getItem('agentApiKey') || localStorage.getItem('agentApiKey') || '').trim(),
+    provider: localStorage.getItem('agentProvider') || 'deepseek',
+    model: localStorage.getItem('agentModel') || ''
+  };
+  return configFingerprint(draft) === configFingerprint(saved) ? saved.apiKey : '';
 }
 
 function requireAgentConfiguration() {
@@ -232,11 +325,11 @@ function stopAgentActivity() {
   hideGlobalVoiceStatus(true);
 }
 
-function isAgentOffline() { return !getEffectiveApiKey(); }
+function isAgentOffline() { return !getEffectiveApiKey() || verifiedAgentConfig !== configFingerprint(getDraftAgentConfig()); }
 function getAgentIdleTitle() { return isAgentOffline() ? AGENT_OFFLINE_CAPTION.title : AGENT_ONLINE_CAPTION.title; }
 function getAgentIdleText() { return isAgentOffline() ? AGENT_OFFLINE_CAPTION.text : AGENT_ONLINE_CAPTION.text; }
 
-// 未保存大模型密钥时，禁止智能体活动与数字人语音。
+// 模型与密钥未验证通过时，禁止智能体活动与数字人语音。
 function updateAgentConnectionState() {
   const offline = isAgentOffline();
   const card = document.getElementById('digitalHumanCard');
@@ -244,17 +337,17 @@ function updateAgentConnectionState() {
   const badgeText = badge ? badge.querySelector('.avatar-online-text') : null;
 
   if (card) card.classList.toggle('agent-offline', offline);
-  if (badge) badge.setAttribute('aria-label', offline ? '未启用：未配置 API Key' : '配置已保存；大模型连接以实际请求结果为准');
+  if (badge) badge.setAttribute('aria-label', offline ? '未启用：模型与 API Key 尚未验证通过' : '模型连接已验证；每条智能指令仍会重新验证');
   if (badgeText) badgeText.innerText = offline ? '未启用' : '已启用';
 
   document.querySelectorAll('[data-agent-required]').forEach(button => {
     button.disabled = offline;
-    button.title = offline ? '请先在设置中填入 API Key 并保存' : '';
+    button.title = offline ? '请先在设置中验证模型与 API Key' : '';
   });
   const input = document.getElementById('userInput');
   if (input) {
     input.disabled = offline;
-    input.placeholder = offline ? '先配置 API Key；未配置时请用按钮操作' : '例如：打开客厅灯，洗衣计时45分钟';
+    input.placeholder = offline ? '先验证模型与 API Key；也可用按钮操作' : '例如：打开客厅灯，洗衣计时45分钟';
   }
   window.DailyReport?.updateSpeechButtons();
   if (offline) stopAgentActivity();
@@ -272,11 +365,12 @@ function updateAgentConnectionState() {
 function initApiKeyWatcher() {
   const field = document.getElementById('apiKeyInput');
   if (!field) return;
-  field.addEventListener('input', updateAgentConnectionState);
+  field.addEventListener('input', invalidateAgentConfiguration);
+  document.getElementById('modelInput')?.addEventListener('input', invalidateAgentConfiguration);
   window.addEventListener('storage', event => {
-    if (event.key === 'agentApiKey' || event.key === null) {
+    if (['agentApiKey', 'agentProvider', 'agentModel'].includes(event.key) || event.key === null) {
       field.value = sessionStorage.getItem('agentApiKey') || localStorage.getItem('agentApiKey') || '';
-      updateAgentConnectionState();
+      invalidateAgentConfiguration();
     }
   });
 }
@@ -284,35 +378,25 @@ function initApiKeyWatcher() {
 function updatePlaceholder() {
   const provider = document.querySelector('input[name="provider"]:checked').value;
   const input = document.getElementById('apiKeyInput');
+  const model = document.getElementById('modelInput');
+  model.placeholder = { deepseek: '留空使用 deepseek-chat', qwen: '留空使用 qwen-plus', doubao: '必填：已开通的模型 ID 或 ep- 接入点 ID' }[provider];
+  invalidateAgentConfiguration();
   if (provider === 'deepseek') input.placeholder = "请输入 DeepSeek 密钥 (通常以 sk- 开头)...";
   else if (provider === 'qwen') input.placeholder = "请输入通义千问 密钥 (通常以 sk- 开头)...";
   else if (provider === 'doubao') input.placeholder = "请输入火山引擎/豆包 密钥 (纯字符，通常无 sk- 前缀)...";
 }
 
-function saveConfig(mode) {
-  const key = document.getElementById('apiKeyInput').value.trim();
-  const provider = document.querySelector('input[name="provider"]:checked').value;
-  const level = document.querySelector('input[name="level"]:checked').value;
-  
-  localStorage.setItem('agentProvider', provider);
-  localStorage.setItem('agentLevel', level);
-
-  if (mode === 'permanent') {
-    if (key) localStorage.setItem('agentApiKey', key);
-    else localStorage.removeItem('agentApiKey');
-    sessionStorage.removeItem('agentApiKey'); 
-  } else if (mode === 'session') {
-    if (key) sessionStorage.setItem('agentApiKey', key);
-    else sessionStorage.removeItem('agentApiKey');
-    localStorage.removeItem('agentApiKey'); 
+async function saveConfig(mode) {
+  if (!['permanent', 'session'].includes(mode)) return false;
+  const config = getDraftAgentConfig();
+  if (!config.apiKey) {
+    sessionStorage.removeItem('agentApiKey');
+    localStorage.removeItem('agentApiKey');
+    invalidateAgentConfiguration();
+    showConfigStatus('密钥已清除，管家未启用。');
+    return false;
   }
-  
-  updateAgentConnectionState();
-
-  const status = document.getElementById('saveStatus');
-  document.getElementById('saveStatusText').innerText = mode === 'permanent' ? '配置已永久保存' : '密钥仅本次有效';
-  status.style.display = 'inline-block';
-  setTimeout(() => status.style.display = 'none', 2000);
+  return verifyAgentConfiguration(config, mode);
 }
 
 function switchPage(pageId, element) {
@@ -552,6 +636,7 @@ async function sendVoiceCommand() {
   }
 
   if (isWeatherQuestion(text)) {
+    if (!await verifyAgentConfiguration(getDraftAgentConfig())) return;
     document.getElementById('userInput').value = '';
     showGlobalVoiceStatus('管家查询中', '正在获取今天的天气情况...', 'thinking');
     const snapshot = await getTodayWeatherSnapshot();
@@ -565,21 +650,21 @@ async function sendVoiceCommand() {
 
   if (/(念|读|播报|朗读|阅读|说一下|讲讲|听一下)/.test(text) && /提醒/.test(text)) {
     document.getElementById('userInput').value = '';
+    if (!await verifyAgentConfiguration(getDraftAgentConfig())) return;
     speakPendingAlert();
     return;
   }
 
   const controlCommand = parseTaskControlCommand(text);
   if (controlCommand) {
+    if (!await verifyAgentConfiguration(getDraftAgentConfig())) return;
     document.getElementById('userInput').value = '';
     showGlobalVoiceStatus('任务控制', '正在执行任务操作...', 'thinking');
     await controlTask(controlCommand.action, controlCommand.seconds);
     return;
   }
 
-  const apiKey = getEffectiveApiKey();
-  const provider = document.querySelector('input[name="provider"]:checked').value;
-  const level = document.querySelector('input[name="level"]:checked').value;
+  const llmConfig = getDraftAgentConfig();
 
   document.getElementById('userInput').value = '';
   console.log(`[发送指令]: "${text}"`);
@@ -588,28 +673,31 @@ async function sendVoiceCommand() {
   const statusEl = document.querySelector('.avatar-status');
   if (statusEl) statusEl.innerText = "正在为您思考，请稍候...";
 
+  let requestController;
   try {
     agentRequestController?.abort();
-    agentRequestController = new AbortController();
+    requestController = new AbortController();
+    agentRequestController = requestController;
     const res = await fetch('/api/interact', {
       signal: agentRequestController.signal,
       method: 'POST', 
       headers: { 'Content-Type': 'application/json' }, 
-      body: JSON.stringify({ text, llmConfig: { apiKey, provider, level } }) 
+      body: JSON.stringify({ text, llmConfig })
     });
     const data = await res.json();
-    if (isAgentOffline()) return;
-    if (!res.ok) throw new Error(data.error || '数字人请求失败');
+    if (agentRequestController !== requestController || isAgentOffline()) return;
+    if (!res.ok) {
+      showAgentRequestFailure(data.error || '数字人请求失败');
+      return;
+    }
     if (data.reply) agentSpeak(data.reply);
     else {
       showGlobalVoiceStatus('没有回应', '管家暂时没有生成有效回复。', 'idle');
       hideGlobalVoiceStatus();
     }
   } catch (error) {
-    if (error.name === 'AbortError' || isAgentOffline()) return;
-    if (statusEl) statusEl.innerText = "抱歉，网络连接或大模型调用出现了异常。";
-    showGlobalVoiceStatus('连接异常', '网络连接或大模型调用出现了异常。', 'idle');
-    hideGlobalVoiceStatus();
+    if (error.name === 'AbortError' || agentRequestController !== requestController) return;
+    showAgentRequestFailure('网络连接或模型调用出现异常，请重新验证配置。');
   }
 }
 
