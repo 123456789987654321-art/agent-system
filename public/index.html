@@ -470,12 +470,7 @@
             <input type="password" id="apiKeyInput" placeholder="请输入 DeepSeek 密钥 (通常以 sk- 开头)..." class="api-input">
           </div>
           <div class="setting-box">
-            <label for="modelInput">3. 模型 ID（豆包必填，其他平台可留空）：</label>
-            <input type="text" id="modelInput" placeholder="留空使用平台默认模型" class="api-input" autocomplete="off">
-            <small>保存时会发送一次实际模型请求验证连接，可能产生少量调用费用；每条智能指令也会重新验证。</small>
-          </div>
-          <div class="setting-box">
-            <label>4. 调度严格程度 (Temperature)：</label>
+            <label>3. 调度严格程度 (Temperature)：</label>
             <div class="radio-group">
               <label><input type="radio" name="level" value="low" checked> <span><strong>精准控制</strong><small>低 · 不易出错</small></span></label>
               <label><input type="radio" name="level" value="medium"> <span><strong>均衡反馈</strong><small>中 · 平衡表达与控制</small></span></label>
@@ -517,7 +512,7 @@
 
   <script src="task-parser.js?v=reminders-20260927-1"></script>
   <script src="task-alerts.js?v=task-speech-priority-20260927-1"></script>
-  <script src="app.js?v=api-model-validation-20260927-1"></script>
+  <script src="app.js?v=three-settings-20260927-1"></script>
   <script src="report.js?v=avatar-tech-20260926-1"></script>
 </body>
 </html>

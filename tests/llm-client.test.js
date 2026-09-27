@@ -31,10 +31,35 @@ test('only fixed provider destinations are used with the exact chosen key and mo
 
 test('invalid configuration is rejected before contacting a provider', async t => {
   const transport = t.mock.method(axios, 'post', () => { throw Error('must not request'); });
-  for (const config of [null, {}, { apiKey: 'x' }, { apiKey: 'x', provider: 'constructor' }, { apiKey: 'x', provider: 'doubao' },
+  for (const config of [null, {}, { apiKey: 'x' }, { apiKey: 'x', provider: 'constructor' },
     { apiKey: 'x\nbad', provider: 'deepseek' }, { apiKey: 'x', provider: 'qwen', model: 42 }]) {
     assert.throws(() => normalizeConfig(config));
     await assert.rejects(validateConfig(config));
   }
   assert.equal(transport.mock.callCount(), 0);
+});
+
+test('all three providers work with a key and provider only, using server defaults', async t => {
+  const calls = [];
+  t.mock.method(axios, 'post', async (...args) => {
+    calls.push(args);
+    return { data: { choices: [{ message: { content: '{"reply":"ok","actions":[]}' } }] } };
+  });
+  for (const [provider, expectedModel] of [
+    ['deepseek', 'deepseek-chat'],
+    ['qwen', 'qwen-plus'],
+    ['doubao', process.env.DOUBAO_MODEL?.trim() || 'doubao-pro-32k']
+  ]) {
+    const result = await validateConfig({ apiKey: 'test-key', provider, level: 'low' });
+    assert.equal(result.model, expectedModel);
+    assert.equal(calls.at(-1)[1].model, expectedModel);
+  }
+  const original = process.env.DOUBAO_MODEL;
+  try {
+    process.env.DOUBAO_MODEL = 'ep-deployment-model';
+    assert.equal(normalizeConfig({ apiKey: 'test-key', provider: 'doubao' }).model, 'ep-deployment-model');
+  } finally {
+    if (original === undefined) delete process.env.DOUBAO_MODEL;
+    else process.env.DOUBAO_MODEL = original;
+  }
 });

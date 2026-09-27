@@ -25,7 +25,7 @@ test('recognized voice text reaches the server intact through one interaction re
         querySelector: selector => selector.includes('provider') ? { value: 'deepseek' } : selector.includes('level') ? { value: 'low' } : {}
       },
       requireAgentConfiguration: () => true, isWeatherQuestion: () => false,
-      parseTaskControlCommand: () => null, getDraftAgentConfig: () => ({ apiKey: 'test-key', provider: 'deepseek', model: '', level: 'low' }),
+      parseTaskControlCommand: () => null, getDraftAgentConfig: () => ({ apiKey: 'test-key', provider: 'deepseek', level: 'low' }),
       showGlobalVoiceStatus() {}, hideGlobalVoiceStatus() {}, isAgentOffline: () => false,
       console: { log() {} }, agentRequestController: null, AbortController,
       agentSpeak: reply => spoken.push(reply),

@@ -41,7 +41,6 @@ window.onload = () => {
   const savedKey = sessionStorage.getItem('agentApiKey') || localStorage.getItem('agentApiKey');
   const savedProvider = localStorage.getItem('agentProvider') || 'deepseek';
   const savedLevel = localStorage.getItem('agentLevel') || 'low';
-  document.getElementById('modelInput').value = localStorage.getItem('agentModel') || '';
   
   if (savedKey) document.getElementById('apiKeyInput').value = savedKey;
   document.querySelector(`input[name="provider"][value="${savedProvider}"]`).checked = true;
@@ -200,13 +199,12 @@ function getDraftAgentConfig() {
   return {
     apiKey: document.getElementById('apiKeyInput').value.trim(),
     provider: document.querySelector('input[name="provider"]:checked').value,
-    model: document.getElementById('modelInput').value.trim(),
     level: document.querySelector('input[name="level"]:checked').value
   };
 }
 
 function configFingerprint(config) {
-  return JSON.stringify([config.apiKey, config.provider, config.model]);
+  return JSON.stringify([config.apiKey, config.provider]);
 }
 
 function showConfigStatus(message, success = false) {
@@ -251,7 +249,6 @@ async function verifyAgentConfiguration(config, mode) {
       storage.setItem('agentApiKey', config.apiKey);
       other.removeItem('agentApiKey');
       localStorage.setItem('agentProvider', config.provider);
-      localStorage.setItem('agentModel', config.model);
       localStorage.setItem('agentLevel', config.level);
     }
     verifiedAgentConfig = fingerprint;
@@ -285,8 +282,7 @@ function getEffectiveApiKey() {
   const draft = getDraftAgentConfig();
   const saved = {
     apiKey: (sessionStorage.getItem('agentApiKey') || localStorage.getItem('agentApiKey') || '').trim(),
-    provider: localStorage.getItem('agentProvider') || 'deepseek',
-    model: localStorage.getItem('agentModel') || ''
+    provider: localStorage.getItem('agentProvider') || 'deepseek'
   };
   return configFingerprint(draft) === configFingerprint(saved) ? saved.apiKey : '';
 }
@@ -366,9 +362,8 @@ function initApiKeyWatcher() {
   const field = document.getElementById('apiKeyInput');
   if (!field) return;
   field.addEventListener('input', invalidateAgentConfiguration);
-  document.getElementById('modelInput')?.addEventListener('input', invalidateAgentConfiguration);
   window.addEventListener('storage', event => {
-    if (['agentApiKey', 'agentProvider', 'agentModel'].includes(event.key) || event.key === null) {
+    if (['agentApiKey', 'agentProvider'].includes(event.key) || event.key === null) {
       field.value = sessionStorage.getItem('agentApiKey') || localStorage.getItem('agentApiKey') || '';
       invalidateAgentConfiguration();
     }
@@ -378,8 +373,6 @@ function initApiKeyWatcher() {
 function updatePlaceholder() {
   const provider = document.querySelector('input[name="provider"]:checked').value;
   const input = document.getElementById('apiKeyInput');
-  const model = document.getElementById('modelInput');
-  model.placeholder = { deepseek: '留空使用 deepseek-chat', qwen: '留空使用 qwen-plus', doubao: '必填：已开通的模型 ID 或 ep- 接入点 ID' }[provider];
   invalidateAgentConfiguration();
   if (provider === 'deepseek') input.placeholder = "请输入 DeepSeek 密钥 (通常以 sk- 开头)...";
   else if (provider === 'qwen') input.placeholder = "请输入通义千问 密钥 (通常以 sk- 开头)...";

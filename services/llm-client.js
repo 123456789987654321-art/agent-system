@@ -3,7 +3,7 @@ const axios = require('axios');
 const PROVIDERS = Object.freeze({
   deepseek: { url: 'https://api.deepseek.com/chat/completions', model: 'deepseek-chat' },
   qwen: { url: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', model: 'qwen-plus' },
-  doubao: { url: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions', model: '' }
+  doubao: { url: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions', model: 'doubao-pro-32k' }
 });
 
 class LlmError extends Error {
@@ -23,8 +23,9 @@ function normalizeConfig(config) {
   const provider = config.provider;
   if (typeof provider !== 'string' || !Object.hasOwn(PROVIDERS, provider)) throw new LlmError(400, 'PROVIDER_INVALID', '请选择受支持的模型平台。');
   if (config.model != null && typeof config.model !== 'string') throw new LlmError(400, 'MODEL_INVALID', '模型 ID 必须是文本。');
-  const model = config.model?.trim() || PROVIDERS[provider].model;
-  if (!model) throw new LlmError(400, 'MODEL_REQUIRED', '请填写豆包控制台中已开通的模型 ID 或推理接入点 ID。');
+  // The page only selects a provider; deployments can override Doubao's original default.
+  const defaultModel = provider === 'doubao' ? process.env.DOUBAO_MODEL?.trim() || PROVIDERS.doubao.model : PROVIDERS[provider].model;
+  const model = config.model?.trim() || defaultModel;
   if (!/^[a-zA-Z0-9._:/-]{1,200}$/.test(model)) throw new LlmError(400, 'MODEL_INVALID', '模型 ID 格式无效。');
   return { apiKey, provider, model, level: config.level };
 }
@@ -36,9 +37,9 @@ function toLlmError(error) {
   if (status === 401) return new LlmError(401, 'API_KEY_REJECTED', 'API Key 无效、已过期或不属于所选平台，请检查后重新验证。');
   if (status === 403) return new LlmError(403, 'MODEL_ACCESS_DENIED', '当前密钥没有访问该模型的权限，或账号已被禁用。');
   if (status === 402) return new LlmError(402, 'API_BALANCE_INSUFFICIENT', '模型平台余额不足，请充值后重试。');
-  if (status === 404) return new LlmError(400, 'MODEL_NOT_FOUND', '模型或推理接入点不存在，请检查模型 ID、地域及开通状态。');
+  if (status === 404) return new LlmError(400, 'MODEL_NOT_FOUND', '当前平台的默认模型不可用，请检查账号开通状态或联系部署者检查服务端模型配置。');
   if (status === 429) return new LlmError(429, 'API_RATE_LIMITED', '模型平台额度不足或请求过于频繁，请检查额度或稍后重试。');
-  if (status === 400 || status === 422) return new LlmError(400, 'MODEL_REQUEST_REJECTED', '模型平台拒绝请求，请检查模型 ID、开通状态及是否支持 JSON 对话。');
+  if (status === 400 || status === 422) return new LlmError(400, 'MODEL_REQUEST_REJECTED', '模型平台拒绝请求，请检查账号开通状态，或联系部署者检查服务端模型配置及 JSON 对话支持。');
   if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') return new LlmError(504, 'MODEL_TIMEOUT', '模型平台连接超时，未执行指令，请稍后重试。');
   return new LlmError(502, 'MODEL_UNAVAILABLE', '暂时无法连接模型平台，未执行指令，请检查网络或稍后重试。');
 }

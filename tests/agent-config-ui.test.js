@@ -14,7 +14,6 @@ function browser(saved = {}) {
   const element = value => ({ value, style: {}, listeners: {}, addEventListener(type, handler) { this.listeners[type] = handler; }, querySelector() { return null; } });
   const fields = {
     apiKeyInput: element(saved.agentApiKey || ''),
-    modelInput: element(saved.agentModel || ''),
     saveStatus: element(''), saveStatusText: element(''),
     userInput: element(''), avatarCaptionTitle: element('')
   };
@@ -52,7 +51,7 @@ test('stored or merely typed keys never enable the agent before remote validatio
   assert.equal(b.context.isAgentOffline(), true);
 });
 
-test('only successful validation saves credentials and enables the exact key/provider/model', async () => {
+test('only successful validation saves credentials and enables the exact key/provider', async () => {
   for (const mode of ['permanent', 'session']) {
     const b = browser();
     b.fields.apiKeyInput.value = 'valid-key';
@@ -70,8 +69,8 @@ test('only successful validation saves credentials and enables the exact key/pro
     b.provider.value = 'deepseek';
     assert.equal(b.context.isAgentOffline(), true, 'switching back must not restore stale verification');
     await b.context.saveConfig(mode);
-    b.fields.modelInput.value = 'another-model';
-    b.fields.modelInput.listeners.input();
+    b.fields.apiKeyInput.value = 'another-key';
+    b.fields.apiKeyInput.listeners.input();
     assert.equal(b.context.isAgentOffline(), true);
     assert.equal(b.fields.saveStatus.style.display, 'none');
   }
@@ -131,4 +130,21 @@ test('HTTP 200 without a validation success and network errors never enable the 
     assert.equal(b.context.isAgentOffline(), true);
     assert.equal(b.context.localStorage.getItem('agentApiKey'), null);
   }
+});
+
+test('settings retain three sections and old stored model IDs are not sent', async () => {
+  const html = fs.readFileSync(path.join(__dirname, '../public/index.html'), 'utf8');
+  const settings = html.slice(html.indexOf('<h3>智能模型配置</h3>'), html.indexOf('<div class="settings-actions">'));
+  assert.equal((settings.match(/class="setting-box"/g) || []).length, 3);
+  assert.doesNotMatch(settings, /modelInput|模型 ID/);
+  assert.match(settings, /3\. 调度严格程度/);
+  const b = browser({ agentApiKey: 'valid-key', agentProvider: 'doubao', agentModel: 'outdated-custom-model' });
+  let submitted;
+  b.context.fetch = async (url, options) => {
+    submitted = JSON.parse(options.body).llmConfig;
+    return { ok: true, json: async () => ({ success: true }) };
+  };
+  assert.equal(await b.context.saveConfig('permanent'), true);
+  assert.deepEqual(submitted, { apiKey: 'valid-key', provider: 'doubao', level: 'low' });
+  assert.equal(b.context.isAgentOffline(), false);
 });

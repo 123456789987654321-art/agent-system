@@ -41,7 +41,7 @@ test('model authentication gates saving and every instruction before side effect
     [config('test-valid', { provider: 'qwen' }), 401, 'API_KEY_REJECTED'],
     [config('test-valid', { provider: 'other' }), 400, 'PROVIDER_INVALID'],
     [config('test-valid', { provider: '__proto__' }), 400, 'PROVIDER_INVALID'],
-    [config('test-valid', { provider: 'doubao' }), 400, 'MODEL_REQUIRED'],
+    [config('test-valid', { provider: 'doubao' }), 401, 'API_KEY_REJECTED'],
     [config('test-valid', { model: 'wrong-model' }), 400, 'MODEL_NOT_FOUND'],
     [config('test-denied'), 403, 'MODEL_ACCESS_DENIED'],
     [config('test-balance'), 402, 'API_BALANCE_INSUFFICIENT'],
