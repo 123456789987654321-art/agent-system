@@ -155,7 +155,6 @@ async function initLocationAndWeather() {
     todayWeatherSnapshot = null;
     resetWeatherDisplay('正在获取当前位置的天气…');
     // 天气仅使用坐标，不再查询或展示地址信息。
-    fetchHourlyWeather();
     fetchWeather();
   } catch (error) {
     if (positionUpdated) {
@@ -1030,16 +1029,17 @@ initApiKeyWatcher();
 updateAgentConnectionState();
 
 // 渲染总览页面上方的小时天气，并同步渲染折线图
-async function fetchHourlyWeather() {
-  if (!validCoordinates(myLat, myLon)) return;
-  const locationVersion = weatherLocationVersion;
+function renderHourlyWeather(data) {
   const container = document.getElementById('hourlyWeatherContainer');
   try {
-    const data = await fetchJsonWithTimeout(`https://api.open-meteo.com/v1/forecast?latitude=${myLat}&longitude=${myLon}&hourly=temperature_2m,weathercode&timezone=auto&forecast_days=1`);
-    if (locationVersion !== weatherLocationVersion) return;
+    if (!data.hourly || !Array.isArray(data.hourly.time) || data.hourly.time.length < 24
+      || !Array.isArray(data.hourly.temperature_2m) || !Array.isArray(data.hourly.weathercode)
+      || !Array.from({ length: 24 }, (_, i) => i).every(i =>
+        Number.isFinite(data.hourly.temperature_2m[i]) && Number.isFinite(data.hourly.weathercode[i]))) {
+      throw new Error('小时天气数据不完整');
+    }
     const now = new Date(Date.now() + (data.utc_offset_seconds || 0) * 1000);
     let currentH = now.getUTCHours();
-    if (now.getUTCMinutes() > 30) currentH = (currentH + 1) % 24;
 
     let hoursData = [];
     let chartLabels = [];
@@ -1051,7 +1051,7 @@ async function fetchHourlyWeather() {
       const weatherInfo = getWeatherInfo(code);
       let statusStr = weatherInfo.text;
       let icon = weatherInfo.icon;
-      hoursData.push({ hour: i, label: `${i}:00`, icon: icon, status: statusStr, high: Math.round(temp + 1), low: Math.round(temp - 2), isPast: false });
+      hoursData.push({ hour: i, label: `${i}:00`, icon: icon, status: statusStr, temp: Math.round(temp), isPast: false });
       
       chartLabels.push(`${i}:00`);
       chartTemps.push(temp);
@@ -1067,52 +1067,57 @@ async function fetchHourlyWeather() {
     let html = '';
     sortedData.forEach(item => {
       let pastClass = item.isPast ? ' past' : '';
-      html += `<div class="hourly-item${pastClass}"><div style="font-size: 14px; font-weight: bold; color: var(--text-main);">${item.label}</div><div class="hourly-weather-icon">${weatherIconMarkup(item.icon, item.status)}</div><div class="text-status">${item.status}</div><div class="text-temp"><span class="temp-high">${item.high}°</span> / <span class="temp-low">${item.low}°</span></div></div>`;
+      html += `<div class="hourly-item${pastClass}"><div style="font-size: 14px; font-weight: bold; color: var(--text-main);">${item.label}</div><div class="hourly-weather-icon">${weatherIconMarkup(item.icon, item.status)}</div><div class="text-status">${item.status}</div><div class="text-temp">${item.temp}°C</div></div>`;
     });
     if(container) container.innerHTML = html;
 
-    // 渲染图表
-    const ctxChart = document.getElementById('weatherTrendChart');
-    if (ctxChart) {
-      if (weatherChart) { weatherChart.destroy(); }
-      weatherChart = new Chart(ctxChart, {
-        type: 'line',
-        data: {
-          labels: chartLabels,
-          datasets: [{
-            label: '气温 (°C)',
-            data: chartTemps,
-            borderColor: '#007bff',
-            backgroundColor: 'rgba(0, 123, 255, 0.1)',
-            borderWidth: 2,
-            pointBackgroundColor: '#fff',
-            pointBorderColor: '#007bff',
-            pointRadius: 3,
-            fill: true,
-            tension: 0.4 
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false, 
-          layout: {
-            padding: { top: 12, right: 18, bottom: 8, left: 8 }
+    // 图表依赖失败不能覆盖已成功读取的小时预报。
+    try {
+      const ctxChart = document.getElementById('weatherTrendChart');
+      if (ctxChart && typeof Chart === 'function') {
+        if (weatherChart) { weatherChart.destroy(); }
+        weatherChart = new Chart(ctxChart, {
+          type: 'line',
+          data: {
+            labels: chartLabels,
+            datasets: [{
+              label: '气温 (°C)',
+              data: chartTemps,
+              borderColor: '#007bff',
+              backgroundColor: 'rgba(0, 123, 255, 0.1)',
+              borderWidth: 2,
+              pointBackgroundColor: '#fff',
+              pointBorderColor: '#007bff',
+              pointRadius: 3,
+              fill: true,
+              tension: 0.4
+            }]
           },
-          plugins: { legend: { display: false } }, 
-          scales: {
-            x: {
-              grid: { display: false },
-              ticks: { autoSkip: true, maxRotation: 0 }
-            }, 
-            y: { grid: { color: 'rgba(0,0,0,0.05)' } }
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: {
+              padding: { top: 12, right: 18, bottom: 8, left: 8 }
+            },
+            plugins: { legend: { display: false } },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { autoSkip: true, maxRotation: 0 }
+              },
+              y: { grid: { color: 'rgba(0,0,0,0.05)' } }
+            }
           }
-        }
-      });
-      applyWeatherChartTheme();
+        });
+        applyWeatherChartTheme();
+      }
+    } catch (error) {
+      weatherChart = null;
+      console.warn('天气趋势图绘制失败', error);
     }
   } catch (error) { 
-    if (locationVersion !== weatherLocationVersion) return;
-    if(container) container.innerHTML = "获取小时天气失败"; 
+    if (weatherChart) { weatherChart.destroy(); weatherChart = null; }
+    if(container) container.innerText = '今日逐小时预报暂不可用，将在下次天气更新时重试';
   }
 }
 
@@ -1125,7 +1130,7 @@ async function fetchWeather() {
   weatherFetchPromise = (async () => {
     const container = document.getElementById('weather-container');
     try {
-      const data = await fetchJsonWithTimeout(`https://api.open-meteo.com/v1/forecast?latitude=${myLat}&longitude=${myLon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,wind_speed_10m,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`);
+      const data = await fetchJsonWithTimeout(`https://api.open-meteo.com/v1/forecast?latitude=${myLat}&longitude=${myLon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,wind_speed_10m,weathercode&hourly=temperature_2m,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=7`);
       if (locationVersion !== weatherLocationVersion) return null;
       if (!data.current || !data.daily || !Array.isArray(data.daily.time) || data.daily.time.length < 7) {
         throw new Error('天气数据不完整');
@@ -1141,6 +1146,7 @@ async function fetchWeather() {
         html += `<div class="weather-card"><div style="color: var(--text-sub); font-size: 12px;">${date}</div><div class="daily-weather-icon">${weatherIconMarkup(weatherInfo.icon, weatherInfo.text)}</div><div><strong>${maxT}°</strong> / ${minT}°</div></div>`;
       }
       if (container) container.innerHTML = html;
+      renderHourlyWeather(data);
 
       if (data.current) {
         const elFeels = document.getElementById('cw-feels');
